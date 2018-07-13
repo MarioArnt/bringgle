@@ -1,41 +1,46 @@
 <template lang='pug'>
-  .row
-    h1 Create new list
-    form.col.s12
-        div.row
-          div.input-field.col.s12
-            input(placeholder='Awesome List' id='list-name' type='text' class='validate')
-            label(for='list-name') List Name
-        div.roW
-          div.input-field.col.s12
-            input(placeholder='john.doe@mail.com' id='user-email' type='text' class='validate')
-            label(for='user-email') Email
-        div.row
-          div.input-field.col.s12
-            input(placeholder='John Doe' id='user-name' type='text' class='validate')
-            label(for='user-name') Display Name
-        div.row
-          div.input-field.col.s12
-            a(v-on:click='sendData()').waves-effect.waves-light.btn
-              i.fa.fa-plus
-              | Create
+.row
+  h1 Create new list
+  form.col.s12
+    div.row
+      div.input-field.col.s12
+        input(v-validate="'required'" v-model="listName" placeholder='Awesome List' id='list-name' name="list-name" type='text' class='validate' required)
+        label(for='list-name') List Name
+        span.helper-text(:data-error="errors.first('list-name')")
+        span {{ errors.first('list-name') }}
+    div.row
+      div.input-field.col.s12
+        input(v-validate="'required|email'" v-model="email" placeholder='john.doe@mail.com' id='user-email' name="user-email" type='email' class='validate' required)
+        label(for='user-email') Email
+        span.helper-text(:data-error="errors.first('user-email')")
+        span {{ errors.first('user-email') }}
+    div.row
+      div.input-field.col.s12
+        input(v-validate="'required'" v-model="displayName" placeholder='John Doe' id='user-name' name="user-name" type='text' class='validate' required)
+        label(for='user-name') Display Name
+        span.helper-text(:data-error="errors.first('user-name')")
+        span {{ errors.first('user-name') }}
+    div.row
+      div.input-field.col.s12
+        button(:disabled="errors.any() || !this.displayName || !this.listName || !this.userEmail " v-on:click='sendData()').waves-effect.waves-light.btn
+          i.fa.fa-plus
+          | Create
 </template>
 
 <script>
 import Api from '@/api'
-import { required, maxLength } from 'vuelidate/lib/validators'
 
 export default {
   name: 'Test',
   methods: {
     sendData () {
-      return Api().get('posts')
-    }
-  },
-  validations: {
-    name: {
-      required,
-      maxLength: maxLength(150)
+      if (!this.errors.any() && !!this.displayName && !!this.listName && !!this.userEmail) {
+        return Api().post('lists', {
+          displayName: this.displayName,
+          listName: this.listName,
+          userEmail: this.userEmail
+        })
+      }
     }
   }
 }
