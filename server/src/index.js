@@ -30,12 +30,46 @@ app.post('/api/lists', (req, res) => {
       list.title = req.body.listName
       list.owner = owner
       list.save((err) => {
-        if (err) res.send(err, list)
+        if (err) res.send(err)
         else res.json({id: list._id})
       })
     }
   })
 })
+
+app.get('/api/lists/:id', (req, res) => {
+  List.findById(req.params.id, (err, list) => {
+    if (err) res.status(404).send(err)
+    else {
+      const data = {}
+      User.findById(list.owner, (err, owner) => {
+        if (err) res.status(404).send(err)
+        else {
+          const attendees = []
+          for (let i = 0; i < list.attendees.length; ++i) {
+            User.findById(list.attendees[i], (err, attendee) => {
+              if (err) res.status(404).send(err)
+              else attendee.push(userBuilder(attendee))
+            })
+          }
+          data.id = list._id
+          data.title = list.title
+          data.owner = userBuilder(owner)
+          data.attendees = attendees
+          res.json(data)
+        }
+      })
+    }
+  })
+})
+
+function userBuilder (user) {
+  return {
+    id: user._id,
+    name: user.name,
+    email: user.email
+  }
+}
 
 app.listen(process.env.PORT || 8081)
 console.log('Magic happens on port 8081');

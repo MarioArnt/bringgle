@@ -2,9 +2,9 @@
 // (runtime-only or standalone) has been set in webpack.base.conf with an alias.
 import Vue from 'vue'
 import VeeValidate from 'vee-validate'
-import App from './App'
-import Header from './components/Header'
-import router from './router'
+import App from '@/App'
+import Header from '@/components/Header'
+import router from '@/router'
 import Toastr from 'vue-toastr'
 import 'materialize-css/dist/js/materialize'
 require('vue-toastr/src/vue-toastr.scss')

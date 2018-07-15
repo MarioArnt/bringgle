@@ -8,7 +8,7 @@ const ListSchema = new Schema({
     type: Schema.ObjectId,
     ref: 'User'
   },
-  atendees: [{
+  attendees: [{
     type: Schema.ObjectId,
     ref: 'User'
   }],

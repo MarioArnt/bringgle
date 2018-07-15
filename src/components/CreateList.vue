@@ -1,6 +1,5 @@
 <template lang='pug'>
   .row
-    vue-toastr(ref="toastr")
     h1 Create new list
     form.col.s12
       div.row
@@ -23,18 +22,20 @@
           span {{ errors.first('user-name') }}
       div.row
         div.input-field.col.s12
-          a(:disabled="errors.any()" v-on:click='sendData()').waves-effect.waves-light.btn
+          a(:disabled="errors.any() || buttonDisabled" v-on:click='sendData()').waves-effect.waves-light.btn
             i.fa.fa-plus
             | Create
 </template>
 
 <script>
-import axiosClient from '../api/index.js'
+import axiosClient from '@/api'
+import router from '@/router'
 
 export default {
   name: 'Test',
   data: function () {
     return {
+      buttonDisabled: false,
       displayName: '',
       email: '',
       listName: ''
@@ -43,6 +44,7 @@ export default {
   methods: {
     sendData () {
       if (!this.errors.any()) {
+        this.buttonDisabled = true
         axiosClient.request({
           url: 'lists',
           method: 'post',
@@ -53,9 +55,12 @@ export default {
           }
         }).then((res) => {
           this.$toastr.s('List successfully created')
+          router.push('list/' + res.data.id)
+          this.buttonDisabled = false
         }, (err) => {
           this.$toastr.e('Error happened')
           console.log(err)
+          this.buttonDisabled = false
         })
       }
     }

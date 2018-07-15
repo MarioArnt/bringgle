@@ -1,6 +1,7 @@
 <template lang="pug">
   div#app
     app-header
+    vue-toastr(ref="toastr")
     router-view
 </template>
 
