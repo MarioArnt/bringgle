@@ -1,5 +1,6 @@
 <template lang='pug'>
   .row
+    vue-toastr(ref="toastr")
     h1 Create new list
     form.col.s12
       div.row
@@ -22,7 +23,7 @@
           span {{ errors.first('user-name') }}
       div.row
         div.input-field.col.s12
-          button(:disabled="errors.any()" v-on:click='sendData()').waves-effect.waves-light.btn
+          a(:disabled="errors.any()" v-on:click='sendData()').waves-effect.waves-light.btn
             i.fa.fa-plus
             | Create
 </template>
@@ -41,17 +42,21 @@ export default {
   },
   methods: {
     sendData () {
-      axiosClient.get('posts')
-      if (!this.errors.any() && !!this.displayName && !!this.listName && !!this.userEmail) {
-        /* http.request({
-          url: 'https://jsonplaceholder.typicode.com',
+      if (!this.errors.any()) {
+        axiosClient.request({
+          url: 'lists',
           method: 'post',
           data: {
             displayName: this.displayName,
             listName: this.listName,
             userEmail: this.userEmail
           }
-        }) */
+        }).then((res) => {
+          this.$toastr.s('List successfully created')
+        }, (err) => {
+          this.$toastr.e('Error happened')
+          console.log(err)
+        })
       }
     }
   }
