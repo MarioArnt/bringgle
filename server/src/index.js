@@ -22,16 +22,27 @@ app.use(cors())
 app.post('/api/lists', (req, res) => {
   const owner = new User()
   owner.name = req.body.displayName
-  owner.email = req.body.email
-  owner.save((err) => {
-    if (err) res.send(err)
+  owner.email = req.body.userEmail
+  owner.save((err, owner) => {
+    if (err) res.status(500).send(err)
     else {
       const list = new List()
       list.title = req.body.listName
       list.owner = owner
+      list.attendees = []
+      list.attendees.push(owner)
       list.save((err) => {
-        if (err) res.send(err)
-        else res.json({id: list._id})
+        if (err) res.status(500).send(err)
+        else {
+          res.status(201).send({
+            id: list._id,
+            owner: {
+              id: owner._id,
+              name: owner.name,
+              email: owner.email
+            }
+          })
+        }
       })
     }
   })

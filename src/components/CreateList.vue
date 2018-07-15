@@ -10,7 +10,7 @@
           span {{ errors.first('list-name') }}
       div.row
         div.input-field.col.s12
-          input(v-validate="'required|email'" v-model="email" placeholder='john.doe@mail.com' id='user-email' name="user-email" type='email' class='validate' required)
+          input(v-validate="'required|email'" v-model="userEmail" placeholder='john.doe@mail.com' id='user-email' name="user-email" type='email' class='validate' required)
           label(for='user-email') Email
           span.helper-text(:data-error="errors.first('user-email')")
           span {{ errors.first('user-email') }}
@@ -30,6 +30,8 @@
 <script>
 import axiosClient from '@/api'
 import router from '@/router'
+import cookiesUtils from '@/cookies'
+import Header from '@/components/Header'
 
 export default {
   name: 'Test',
@@ -37,8 +39,15 @@ export default {
     return {
       buttonDisabled: false,
       displayName: '',
-      email: '',
+      userEmail: '',
       listName: ''
+    }
+  },
+  created: function () {
+    let user = cookiesUtils.getUser()
+    if (user) {
+      this.displayName = user.name
+      this.userEmail = user.email
     }
   },
   methods: {
@@ -55,6 +64,8 @@ export default {
           }
         }).then((res) => {
           this.$toastr.s('List successfully created')
+          cookiesUtils.setUser(res.data.owner)
+          Header.refreshUser()
           router.push('list/' + res.data.id)
           this.buttonDisabled = false
         }, (err) => {
