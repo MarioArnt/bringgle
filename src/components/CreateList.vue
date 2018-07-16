@@ -31,7 +31,7 @@
 import axiosClient from '@/api'
 import router from '@/router'
 import cookiesUtils from '@/cookies'
-import Header from '@/components/Header'
+import store from '@/store'
 
 export default {
   name: 'Test',
@@ -44,10 +44,10 @@ export default {
     }
   },
   created: function () {
-    let user = cookiesUtils.getUser()
+    let user = store.state.currentUser
     if (user) {
-      this.displayName = user.name
-      this.userEmail = user.email
+      this.displayName = user.name || ''
+      this.userEmail = user.email || ''
     }
   },
   methods: {
@@ -65,7 +65,7 @@ export default {
         }).then((res) => {
           this.$toastr.s('List successfully created')
           cookiesUtils.setUser(res.data.owner)
-          Header.refreshUser()
+          store.commit('changeCurrentUser', cookiesUtils.getUser())
           router.push('list/' + res.data.id)
           this.buttonDisabled = false
         }, (err) => {

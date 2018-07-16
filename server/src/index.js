@@ -60,7 +60,7 @@ app.get('/api/lists/:id', (req, res) => {
           for (let i = 0; i < list.attendees.length; ++i) {
             User.findById(list.attendees[i], (err, attendee) => {
               if (err) res.status(404).send(err)
-              else attendee.push(userBuilder(attendee))
+              else attendees.push(userBuilder(attendee))
             })
           }
           data.id = list._id

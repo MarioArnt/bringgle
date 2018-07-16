@@ -13,7 +13,6 @@
 </template>
 
 <script>
-import cookiesUtils from '@/cookies'
 export default {
   name: 'Header',
   data: function () {
@@ -21,13 +20,8 @@ export default {
       user: {}
     }
   },
-  created: function () {
-    this.user = cookiesUtils.getUser()
-  },
-  methods: {
-    refreshUser: function () {
-      this.user = cookiesUtils.getUser()
-    }
+  mounted: function () {
+    this.user = this.$store.state.currentUser
   }
 }
 </script>

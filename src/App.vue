@@ -6,8 +6,14 @@
 </template>
 
 <script>
+import cookiesUtils from '@/cookies'
+import store from '@/store'
+
 export default {
-  name: 'App'
+  name: 'App',
+  created: function () {
+    store.commit('changeCurrentUser', cookiesUtils.getUser())
+  }
 }
 </script>
 
