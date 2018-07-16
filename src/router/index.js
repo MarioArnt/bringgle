@@ -2,6 +2,7 @@ import Vue from 'vue'
 import Router from 'vue-router'
 import Home from '@/components/Home'
 import CreateList from '@/components/CreateList'
+import JoinList from '@/components/JoinList'
 import List from '@/components/List'
 
 Vue.use(Router)
@@ -21,6 +22,10 @@ export default new Router({
     {
       path: '/list/:id',
       component: List
+    },
+    {
+      path: '/list/:id/join',
+      component: JoinList
     }
   ]
 })

@@ -1,13 +1,7 @@
 <template lang='pug'>
   .row
-    h1 Create new list
+    h1 Join list
     form.col.s12
-      div.row
-        div.input-field.col.s12
-          input(v-validate="'required'" v-model="listName" placeholder='Awesome List' id='list-name' name="list-name" type='text' class='validate' required)
-          label(for='list-name') List Name
-          span.helper-text(:data-error="errors.first('list-name')")
-          span {{ errors.first('list-name') }}
       div.row
         div.input-field.col.s12
           input(v-validate="'required|email'" v-model="userEmail" placeholder='john.doe@mail.com' id='user-email' name="user-email" type='email' class='validate' required)
@@ -24,7 +18,7 @@
         div.input-field.col.s12
           a(:disabled="errors.any() || buttonDisabled" v-on:click='sendData()').waves-effect.waves-light.btn
             i.fa.fa-plus
-            | Create
+            | Join
 </template>
 
 <script>
@@ -34,13 +28,12 @@ import cookiesUtils from '@/cookies'
 import store from '@/store'
 
 export default {
-  name: 'Test',
+  name: 'JoinList',
   data: function () {
     return {
       buttonDisabled: false,
       displayName: '',
-      userEmail: '',
-      listName: ''
+      userEmail: ''
     }
   },
   created: function () {
@@ -57,19 +50,18 @@ export default {
         this.buttonDisabled = true
         const payload = {
           displayName: this.displayName,
-          listName: this.listName,
           userEmail: this.userEmail
         }
         if (postAsCurrentUser) payload.userId = store.state.currentUser.id
         axiosClient.request({
-          url: 'lists',
+          url: 'list/' + this.$route.params.id + '/join',
           method: 'post',
           data: payload
         }).then((res) => {
-          this.$toastr.s('List successfully created')
-          cookiesUtils.setUser(res.data.owner)
+          this.$toastr.s('Yay ! You join the list')
+          cookiesUtils.setUser(res.data.attendee)
           store.commit('changeCurrentUser', cookiesUtils.getUser())
-          router.push('list/' + res.data.id)
+          router.push('list/' + res.data.listId)
           this.buttonDisabled = false
         }, (err) => {
           this.$toastr.e('Error happened')
