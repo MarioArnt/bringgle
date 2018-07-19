@@ -1,24 +1,18 @@
 <template lang='pug'>
-  .row
+  .join-list
     h1 Join list
-    form.col.s12
-      div.row
-        div.input-field.col.s12
-          input(v-validate="'required|email'" v-model="userEmail" placeholder='john.doe@mail.com' id='user-email' name="user-email" type='email' class='validate' required)
-          label(for='user-email') Email
-          span.helper-text(:data-error="errors.first('user-email')")
-          span {{ errors.first('user-email') }}
-      div.row
-        div.input-field.col.s12
-          input(v-validate="'required'" v-model="displayName" placeholder='John Doe' id='user-name' name="user-name" type='text' class='validate' required)
-          label(for='user-name') Display Name
-          span.helper-text(:data-error="errors.first('user-name')")
-          span {{ errors.first('user-name') }}
-      div.row
-        div.input-field.col.s12
-          a(:disabled="errors.any() || buttonDisabled" v-on:click='sendData()').waves-effect.waves-light.btn
-            i.fa.fa-plus
-            | Join
+    form
+      md-field
+        label Email
+        md-input(v-validate="'required|email'" v-model="userEmail" placeholder='john.doe@mail.com' id='user-email' name="user-email" type='email' class='validate' required)
+        span.md-error {{ errors.first('user-email') }}
+      md-field
+        label  Display Name
+        md-input(v-validate="'required'" v-model="displayName" placeholder='John Doe' id='user-name' name="user-name" type='text' class='validate' required)
+        span.md-error {{ errors.first('user-name') }}
+      md-button.md-raised.md-accent(:disabled="errors.any() || buttonDisabled" v-on:click='sendData()')
+        i.fa.fa-plus
+        | Join
 </template>
 
 <script>
@@ -26,6 +20,7 @@ import axiosClient from '@/api'
 import router from '@/router'
 import cookiesUtils from '@/cookies'
 import store from '@/store'
+import Logger from 'js-logger'
 
 export default {
   name: 'JoinList',
@@ -52,20 +47,23 @@ export default {
           displayName: this.displayName,
           userEmail: this.userEmail
         }
-        if (postAsCurrentUser) payload.userId = store.state.currentUser.id
+        if (postAsCurrentUser) {
+          Logger.debug('Creating list as user', store.state.currentUser)
+          payload.userId = store.state.currentUser.id
+        } else Logger.debug('Creating list as new user')
         axiosClient.request({
-          url: 'list/' + this.$route.params.id + '/join',
+          url: 'lists/' + this.$route.params.id + '/join',
           method: 'post',
           data: payload
         }).then((res) => {
           this.$toastr.s('Yay ! You join the list')
           cookiesUtils.setUser(res.data.attendee)
           store.commit('changeCurrentUser', cookiesUtils.getUser())
-          router.push('list/' + res.data.listId)
+          router.push('/list/' + res.data.listId)
           this.buttonDisabled = false
         }, (err) => {
           this.$toastr.e('Error happened')
-          console.log(err)
+          Logger.error('Error happened while creating list', err)
           this.buttonDisabled = false
         })
       }

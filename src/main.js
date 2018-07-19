@@ -4,13 +4,18 @@ import App from '@/App'
 import Header from '@/components/Header'
 import router from '@/router'
 import Toastr from 'vue-toastr'
+import Logger from 'js-logger'
 import store from '@/store'
-import 'materialize-css/dist/js/materialize'
-require('vue-toastr/src/vue-toastr.scss')
+import VueMaterial from 'vue-material'
+import 'vue-material/dist/vue-material.min.css'
+import 'vue-toastr/src/vue-toastr.scss'
+
+Logger.useDefaults()
 
 Vue.config.productionTip = false
 Vue.use(VeeValidate)
 Vue.use(Toastr)
+Vue.use(VueMaterial)
 
 Vue.component('app-header', Header)
 

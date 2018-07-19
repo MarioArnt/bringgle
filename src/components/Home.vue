@@ -8,7 +8,7 @@
     h3 Check what you can bring
     h3 Ask for a sum-up
     router-link(to="/create")
-      a.waves-effect.waves-light.btn
+      md-button.md-raised.md-accent
         i.fa.fa-plus
         | Create new list
 </template>
@@ -19,7 +19,6 @@ export default {
 }
 </script>
 
-<!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
 h1, h2 {
   font-weight: normal;

@@ -7,6 +7,7 @@
 <script>
 import axios from '@/api'
 import router from '@/router'
+import Logger from 'js-logger'
 
 export default {
   data: function () {
@@ -19,19 +20,18 @@ export default {
   name: 'List',
   created: function () {
     axios.get('lists/' + this.$route.params.id).then((res) => {
-      if (res.data.attendees.some((att) => att.id === this.$store.currentUser.id)) {
-        console.log('Current user is an attendee')
+      if (res.data.attendees.some((att) => att.id === this.$store.state.currentUser.id)) {
+        Logger.debug('Current user is an attendee')
         this.list = res.data
-        console.log('List loaded')
-        console.log(this.list)
         this.loaded = true
+        Logger.debug('List loaded', this.list)
       } else {
-        router.push('list/' + res.data.id + '/join')
+        Logger.info('Current user is not an attendee, redirecting...')
+        router.push('/list/' + res.data.id + '/join')
       }
-      console.log(res.data)
     }, (err) => {
       this.error = true
-      console.log(err)
+      Logger.error('Error happened while loading the list', err)
     })
   }
 }
