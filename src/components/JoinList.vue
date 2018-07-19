@@ -33,7 +33,8 @@ export default {
   },
   created: function () {
     let user = store.state.currentUser
-    if (user) {
+    if (user && user.name && user.email) {
+      Logger.debug('Using current user info for form', user)
       this.displayName = user.name || ''
       this.userEmail = user.email || ''
     }
@@ -48,14 +49,15 @@ export default {
           userEmail: this.userEmail
         }
         if (postAsCurrentUser) {
-          Logger.debug('Creating list as user', store.state.currentUser)
+          Logger.debug('Joining list as user', store.state.currentUser)
           payload.userId = store.state.currentUser.id
-        } else Logger.debug('Creating list as new user')
+        } else Logger.debug('Joining list as new user')
         axiosClient.request({
           url: 'lists/' + this.$route.params.id + '/join',
           method: 'post',
           data: payload
         }).then((res) => {
+          Logger.info('User joined the list', res.data.attendee)
           this.$toastr.s('Yay ! You join the list')
           cookiesUtils.setUser(res.data.attendee)
           store.commit('changeCurrentUser', cookiesUtils.getUser())

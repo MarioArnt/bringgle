@@ -9,9 +9,12 @@ const store = new Vuex.Store({
   },
   mutations: {
     changeCurrentUser (state, user) {
-      Vue.set(state.currentUser, 'id', user.id)
-      Vue.set(state.currentUser, 'name', user.name)
-      Vue.set(state.currentUser, 'email', user.email)
+      if (user.id) Vue.set(state.currentUser, 'id', user.id)
+      else Vue.delete(state.currentUser, 'id')
+      if (user.name) Vue.set(state.currentUser, 'name', user.name)
+      else Vue.delete(state.currentUser, 'name')
+      if (user.email) Vue.set(state.currentUser, 'email', user.email)
+      else Vue.delete(state.currentUser, 'email')
     }
   }
 })

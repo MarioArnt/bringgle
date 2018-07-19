@@ -152,12 +152,12 @@ function addAttendeeToList (listId, user, res) {
       res.status(400).send('User already attend this list')
     } else {
       list.attendees.push(user)
-      list.save((err, user) => {
+      list.save((err, list) => {
         if (err) res.status(500).send(err)
         else {
           res.json({
-            listId,
-            attendee: user
+            listId: list._id,
+            attendee: userBuilder(user)
           })
         }
       })

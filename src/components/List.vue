@@ -20,13 +20,14 @@ export default {
   name: 'List',
   created: function () {
     axios.get('lists/' + this.$route.params.id).then((res) => {
+      Logger.debug('Loading list with ID', this.$route.params.id)
       if (res.data.attendees.some((att) => att.id === this.$store.state.currentUser.id)) {
-        Logger.debug('Current user is an attendee')
+        Logger.debug('Current user is an attendee', this.$store.state.currentUser)
         this.list = res.data
         this.loaded = true
         Logger.debug('List loaded', this.list)
       } else {
-        Logger.info('Current user is not an attendee, redirecting...')
+        Logger.info('Current user is not an attendee, redirecting...', this.$store.state.currentUser)
         router.push('/list/' + res.data.id + '/join')
       }
     }, (err) => {
