@@ -1,7 +1,14 @@
 <template lang="pug">
   .list
     h1(v-if="error") Error occured
-    h1(v-if="loaded") "Welcome in list {{  list.title }}
+    .list-content(v-if="loaded")
+      h1 {{  list.title }}
+      h3 Attendees
+      ul
+        li(v-for="attendee in list.attendees") {{ attendee.name }}
+      h3 Items
+        ul
+          li(v-for="item in list.items") {{ item.name }}
 </template>
 
 <script>
