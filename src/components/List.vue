@@ -15,6 +15,7 @@
 import axios from '@/api'
 import router from '@/router'
 import Logger from 'js-logger'
+import io from 'socket.io-client'
 
 export default {
   data: function () {
@@ -33,6 +34,13 @@ export default {
         this.list = res.data
         this.loaded = true
         Logger.debug('List loaded', this.list)
+        const socket = io('localhost:8081', {
+          query: {
+            userId: this.$store.state.currentUser.id,
+            listId: this.list.id
+          }
+        })
+        Logger.info('Socket created', socket)
       } else {
         Logger.info('Current user is not an attendee, redirecting...', this.$store.state.currentUser)
         router.push('/list/' + res.data.id + '/join')

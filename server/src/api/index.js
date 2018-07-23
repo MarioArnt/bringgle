@@ -1,5 +1,5 @@
-import express from 'express'
-import ListsController from '../controllers/lists'
+const express = require('express')
+const ListsController = require('../controllers/lists')
 
 const router = new express.Router()
 

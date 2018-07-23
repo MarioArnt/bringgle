@@ -1,6 +1,6 @@
-import User from '../models/user'
-import List from '../models/list'
-import UsersController from './users'
+const User = require('../models/user')
+const List = require('../models/list')
+const UsersController = require('./users')
 
 const ListsController = {}
 
@@ -50,6 +50,18 @@ ListsController.getList = async (req, res) => {
         }
       })
     }
+  })
+}
+
+ListsController.getListsId = () => {
+  return new Promise(resolve => {
+    List.find({}, (err, lists) => {
+      if (err) {
+        console.log('ERROR WHILE FETCHING LISTS: ' + err)
+        resolve([])
+      }
+      resolve(lists.map(l => l._id))
+    })
   })
 }
 
