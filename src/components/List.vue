@@ -3,17 +3,20 @@
     h1(v-if="error") Error occured
     .list-content(v-if="loaded")
       h1 {{  $store.state.currentList.title }}
-      h3 Attendees
       div#attendees
+        h3 Attendees
         div.attendee(v-for="attendee in $store.state.currentList.attendees")
-          md-card(md-with-hover)
-            md-ripple
-              md-card-header
-                div.md-title {{ attendee.name }}
-                div.md-subhead {{ attendee.connected ? 'Online' : 'Offline' }}
-      h3 Items
-        ul
-          li(v-for="item in $store.state.currentList.items") {{ item.name }}
+            md-card(md-with-hover)
+              md-ripple
+                md-card-header
+                  div.md-title {{ attendee.name }}
+                  div.md-subhead
+                    div.circle(:class="attendee.connected ? 'green' : 'red'")
+                    | {{ attendee.connected ? 'Online' : 'Offline' }}
+      div#items
+        h3 Items
+          ul
+            li(v-for="item in $store.state.currentList.items") {{ item.name }}
 </template>
 
 <script>
@@ -64,6 +67,29 @@ export default {
 }
 </script>
 
-<style scoped>
-
+<style lang="scss" scoped>
+$attendees-panel-width: 25%;
+#attendees {
+  width: $attendees-panel-width;
+  float: right;
+  .attendee {
+    margin: 5px 0;
+    .circle {
+      height: 10px;
+      width: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 5px;
+      &.red {
+        background-color: red;
+      }
+      &.green {
+        background-color: green;
+      }
+    }
+  }
+}
+#items {
+  width: 100% - $attendees-panel-width;
+}
 </style>
