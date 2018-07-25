@@ -1,7 +1,9 @@
 module.exports = (SocketsUtils) => {
   const User = require('../models/user')
   const List = require('../models/list')
+  const ListItem = require('../models/listItem')
   const UsersController = require('./users')
+  const ItemsController = require('./items')
 
   const ListsController = {}
 
@@ -48,11 +50,14 @@ module.exports = (SocketsUtils) => {
           if (err) res.status(404).send(err)
           else {
             buildAttendeesList(list).then((attendees) => {
-              data.id = list._id
-              data.title = list.title
-              data.owner = UsersController.userBuilder(owner)
-              data.attendees = attendees
-              res.json(data)
+              buildItemsList(list).then((items) => {
+                data.id = list._id
+                data.title = list.title
+                data.owner = UsersController.userBuilder(owner)
+                data.attendees = attendees || []
+                data.items = items || []
+                res.json(data)
+              })
             })
           }
         })
@@ -69,6 +74,45 @@ module.exports = (SocketsUtils) => {
         }
         resolve(lists.map(l => l._id))
       })
+    })
+  }
+
+  ListsController.addItem = (req, res) => {
+    const listId = req.params.id
+    List.findById(listId, (err, list) => {
+      if (err) res.status(404).send(err)
+      else {
+        User.findById(req.body.author, (err, author) => {
+          if (err) res.status(404).send(err)
+          else {
+            console.log('Author ID')
+            console.log(req.body.author)
+            console.log('Attendees')
+            console.log(list.attendees)
+            console.log('Authorized?')
+            console.log(list.attendees.indexOf(req.body.author) >= 0)
+            if (list.attendees.indexOf(req.body.author) < 0) res.status(401).send('Not Authorized')
+            else {
+              const item = new ListItem()
+              item.quantity = req.body.quantity
+              item.name = req.body.name
+              item.author = author
+              item.responsible = []
+              item.save((err, item) => {
+                if (err) res.status(500).send(err)
+                else {
+                  list.items.push(item)
+                  list.save((err, list) => {
+                    if (err) res.status(500).send(err)
+                    res.status(201).json(item)
+                    SocketsUtils.itemAdded(list._id, item)
+                  })
+                }
+              })
+            }
+          }
+        })
+      }
     })
   }
 
@@ -119,6 +163,18 @@ module.exports = (SocketsUtils) => {
       }
       Promise.all(attendeesPromise).then((attendees) => {
         resolve(attendees)
+      })
+    })
+  }
+
+  const buildItemsList = async (list) => {
+    return new Promise(resolve => {
+      const itemsPromises = []
+      list.items.forEach(itemId => {
+        itemsPromises.push(ItemsController.fetchAndBuildItem(itemId))
+      })
+      Promise.all(itemsPromises).then((items) => {
+        resolve(items)
       })
     })
   }

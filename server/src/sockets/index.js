@@ -44,5 +44,8 @@ module.exports = (io) => {
   SocketsUtils.joinList = (listId, user) => {
     io.sockets.to(listId).emit('user joined', user)
   }
+  SocketsUtils.itemAdded = (listId, item) => {
+    io.sockets.to(listId).emit('item added', item)
+  }
   return SocketsUtils
 }

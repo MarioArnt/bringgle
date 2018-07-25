@@ -57,6 +57,10 @@ const store = new Vuex.Store({
     },
     addAttendee (state, attendee) {
       state.currentList.attendees.push(attendee)
+    },
+    addItem (state, item) {
+      Logger.debug(state)
+      state.currentList.items.push(item)
     }
   }
 })

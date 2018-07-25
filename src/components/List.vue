@@ -15,8 +15,20 @@
                     | {{ attendee.connected ? 'Online' : 'Offline' }}
       div#items
         h3 Items
-          ul
-            li(v-for="item in $store.state.currentList.items") {{ item.name }}
+        ul
+          li(v-for="item in $store.state.currentList.items") {{ item.name }}
+        .md-layout.md-gutter.md-alignment-center
+          .md-layout-item#qty
+            md-field
+              label Quantity
+              md-input(v-model="newItem.qty" type="number")
+          .md-layout-item#new-item
+            md-field
+              label Item
+              md-input(v-model="newItem.label" v-on:keyup.enter="submitItem()")
+          .md-layout-item#add-item
+            md-button.md-icon-button(v-on:click="submitItem()")
+              i.fa.fa-plus
 </template>
 
 <script>
@@ -25,21 +37,30 @@ import router from '@/router'
 import Logger from 'js-logger'
 import io from 'socket.io-client'
 
-function userConnectedOrDisconnected (store, connected) {
+const userConnectedOrDisconnected = (store, connected) => {
   Logger.info('Connected: ', connected)
   store.commit('changeConnectedUsers', connected)
 }
 
-function userJoined (store, user) {
+const userJoined = (store, user) => {
   Logger.info('New user joined list', user)
   store.commit('addAttendee', user)
+}
+
+const itemAdded = (store, item) => {
+  Logger.info('New item added to list')
+  store.commit('addItem', item)
 }
 
 export default {
   data: function () {
     return {
       loaded: false,
-      error: false
+      error: false,
+      newItem: {
+        qty: 1,
+        label: ''
+      }
     }
   },
   name: 'List',
@@ -60,6 +81,7 @@ export default {
         socket.on('user connected', connected => userConnectedOrDisconnected(this.$store, connected))
         socket.on('user disconnected', connected => userConnectedOrDisconnected(this.$store, connected))
         socket.on('user joined', user => userJoined(this.$store, user))
+        socket.on('item added', item => itemAdded(this.$store, item))
         Logger.info('Socket created', socket)
       } else {
         Logger.info('Current user is not an attendee, redirecting...', this.$store.state.currentUser)
@@ -69,6 +91,18 @@ export default {
       this.error = true
       Logger.error('Error happened while loading the list', err)
     })
+  },
+  methods: {
+    submitItem () {
+      Logger.info('Submitting item', this.newItem)
+      axios.post(`lists/${this.$store.state.currentList.id}/items`, {
+        quantity: this.newItem.qty,
+        name: this.newItem.label,
+        author: this.$store.state.currentUser.id
+      }).then((res) => {
+        Logger.debug(res)
+      })
+    }
   }
 }
 </script>
@@ -97,5 +131,17 @@ $attendees-panel-width: 25%;
 }
 #items {
   width: 100% - $attendees-panel-width;
+  #qty {
+    width: 80px;
+  }
+  #new-item {
+    flex: 1;
+  }
+  #add-item {
+    width: 80px;
+    .fa {
+      margin: 0;
+    }
+  }
 }
 </style>

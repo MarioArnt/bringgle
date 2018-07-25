@@ -5,5 +5,6 @@ module.exports = (SocketsUtils) => {
   router.post('/api/lists', ListsController.createList)
   router.get('/api/lists/:id', ListsController.getList)
   router.post('/api/lists/:id/join', ListsController.joinList)
+  router.post('/api/lists/:id/items', ListsController.addItem)
   return router
 }
