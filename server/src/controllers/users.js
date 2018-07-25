@@ -15,10 +15,6 @@ UsersController.fetchAndBuildUser = (userId, res) => {
     User.findById(userId, (err, attendee) => {
       if (err) res.status(404).send(err)
       else {
-        console.log('attendee found')
-        console.log(attendee)
-        console.log('Reformating')
-        console.log(UsersController.userBuilder(attendee))
         resolve(UsersController.userBuilder(attendee))
       }
     })

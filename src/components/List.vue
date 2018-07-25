@@ -4,8 +4,13 @@
     .list-content(v-if="loaded")
       h1 {{  list.title }}
       h3 Attendees
-      ul
-        li(v-for="attendee in list.attendees") {{ attendee.name }}
+      div#attendees
+        div.attendee(v-for="attendee in list.attendees")
+          md-card(md-with-hover)
+            md-ripple
+              md-card-header
+                div.md-title {{ attendee.name }}
+                div.md-subhead {{ attendee.connected ? 'Online' : 'Offline' }}
       h3 Items
         ul
           li(v-for="item in list.items") {{ item.name }}
@@ -16,6 +21,17 @@ import axios from '@/api'
 import router from '@/router'
 import Logger from 'js-logger'
 import io from 'socket.io-client'
+
+function userConnectedOrDisconnected (connectedUsers, attendees) {
+  Logger.info('Connected: ', connectedUsers)
+  attendees.forEach(att => {
+    att.connected = false
+  })
+  connectedUsers.forEach(usr => {
+    attendees.find(att => att.id === usr).connected = true
+  })
+  Logger.debug(attendees)
+}
 
 export default {
   data: function () {
@@ -40,6 +56,8 @@ export default {
             listId: this.list.id
           }
         })
+        socket.on('user connected', connected => userConnectedOrDisconnected(connected, this.list.attendees))
+        socket.on('user disconnected', connected => userConnectedOrDisconnected(connected, this.list.attendees))
         Logger.info('Socket created', socket)
       } else {
         Logger.info('Current user is not an attendee, redirecting...', this.$store.state.currentUser)

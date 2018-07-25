@@ -100,14 +100,11 @@ function createList (req, res, owner) {
 
 const buildAttendeesList = async (list) => {
   return new Promise(resolve => {
-    console.log('Building attendees list')
     const attendeesPromise = []
     for (let i = 0; i < list.attendees.length; ++i) {
-      console.log('Find attendee with ID: ' + list.attendees[i])
       attendeesPromise.push(UsersController.fetchAndBuildUser(list.attendees[i]))
     }
     Promise.all(attendeesPromise).then((attendees) => {
-      console.log(attendees)
       resolve(attendees)
     })
   })
