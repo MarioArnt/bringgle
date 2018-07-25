@@ -30,6 +30,11 @@ function userConnectedOrDisconnected (store, connected) {
   store.commit('changeConnectedUsers', connected)
 }
 
+function userJoined (store, user) {
+  Logger.info('New user joined list', user)
+  store.commit('addAttendee', user)
+}
+
 export default {
   data: function () {
     return {
@@ -54,6 +59,7 @@ export default {
         })
         socket.on('user connected', connected => userConnectedOrDisconnected(this.$store, connected))
         socket.on('user disconnected', connected => userConnectedOrDisconnected(this.$store, connected))
+        socket.on('user joined', user => userJoined(this.$store, user))
         Logger.info('Socket created', socket)
       } else {
         Logger.info('Current user is not an attendee, redirecting...', this.$store.state.currentUser)

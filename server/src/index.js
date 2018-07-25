@@ -6,7 +6,7 @@ const bodyParser = require('body-parser')
 const cors = require('cors')
 const morgan = require('morgan')
 const SocketsUtils = require('./sockets')(io)
-const router = require('./api')
+const router = require('./api')(SocketsUtils)
 
 mongoose.connect('mongodb://localhost:27017/bringgle')
 const db = mongoose.connection
