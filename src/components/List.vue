@@ -15,8 +15,9 @@
                     | {{ attendee.connected ? 'Online' : 'Offline' }}
       div#items
         h3 Items
-        ul
-          li(v-for="item in $store.state.currentList.items") {{ item.name }}
+        .items-container
+          div.item(v-for="item in $store.state.currentList.items")
+            md-checkbox(v-if="item.quantity === 1" v-model="item.responsible.length === 1" v-on:change="bringItem(item)") {{ item.name }}
         .md-layout.md-gutter.md-alignment-center
           .md-layout-item#qty
             md-field
@@ -48,8 +49,13 @@ const userJoined = (store, user) => {
 }
 
 const itemAdded = (store, item) => {
-  Logger.info('New item added to list')
+  Logger.info('New item added to list', item)
   store.commit('addItem', item)
+}
+
+const itemUpdated = (store, item) => {
+  Logger.info('Item updated', item)
+  store.commit('updateItem', item)
 }
 
 export default {
@@ -82,6 +88,7 @@ export default {
         socket.on('user disconnected', connected => userConnectedOrDisconnected(this.$store, connected))
         socket.on('user joined', user => userJoined(this.$store, user))
         socket.on('item added', item => itemAdded(this.$store, item))
+        socket.on('item updated', item => itemUpdated(this.$store, item))
         Logger.info('Socket created', socket)
       } else {
         Logger.info('Current user is not an attendee, redirecting...', this.$store.state.currentUser)
@@ -99,6 +106,14 @@ export default {
         quantity: this.newItem.qty,
         name: this.newItem.label,
         author: this.$store.state.currentUser.id
+      }).then((res) => {
+        Logger.debug(res)
+      })
+    },
+    bringItem (item) {
+      Logger.info(`User ${this.$store.state.currentUser.name} brings item ${item.name}`)
+      axios.patch(`lists/${this.$store.state.currentList.id}/items/${item.id}`, {
+        userId: this.$store.state.currentUser.id
       }).then((res) => {
         Logger.debug(res)
       })

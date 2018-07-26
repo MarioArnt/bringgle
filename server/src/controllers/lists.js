@@ -79,6 +79,7 @@ module.exports = (SocketsUtils) => {
 
   ListsController.addItem = (req, res) => {
     const listId = req.params.id
+    if (req.body.quantity <= 0) res.status(400).send('Bad quantity')
     List.findById(listId, (err, list) => {
       if (err) res.status(404).send(err)
       else {
@@ -110,6 +111,51 @@ module.exports = (SocketsUtils) => {
                 }
               })
             }
+          }
+        })
+      }
+    })
+  }
+
+  ListsController.bringItem = (req, res) => {
+    console.log('User bring item')
+    const listId = req.params.listId
+    const itemId = req.params.itemId
+    List.findById(listId, (err, list) => {
+      if (err) res.status(404).send(err)
+      else {
+        console.log('List found')
+        ListItem.findById(itemId, (err, item) => {
+          if (err) res.status(404).send(err)
+          else if (list.items.indexOf(itemId) < 0) res.status(400).send(err)
+          else if (list.attendees.indexOf(req.body.userId) < 0) res.status(401).send('Not Authorized')
+          else {
+            console.log('Item found, belong to list and user authorized')
+            if (item.quantity === 1) {
+              console.log('Handle case 1 item')
+              if (item.responsible.length === 1) {
+                console.log('Already brought, clearing')
+                item.responsible = []
+              } else {
+                console.log('User bring it')
+                item.responsible = [req.body.userId]
+              }
+            } else {
+              if (!req.body.responsibleId) {
+                item.responsible.push(req.body.userId)
+              } else {
+                console.log('Not supported yet')
+              }
+            }
+            console.log('Saving item')
+            item.save((err, item) => {
+              if (err) res.status(500).send(err)
+              else {
+                console.log('Done sending response')
+                SocketsUtils.itemUpdated(listId, ItemsController.itemBuilder(item))
+                res.status(200).json(ItemsController.itemBuilder(item))
+              }
+            })
           }
         })
       }
