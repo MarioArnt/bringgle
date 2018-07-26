@@ -105,8 +105,8 @@ module.exports = (SocketsUtils) => {
                   list.items.push(item)
                   list.save((err, list) => {
                     if (err) res.status(500).send(err)
-                    res.status(201).json(item)
-                    SocketsUtils.itemAdded(list._id, item)
+                    res.status(201).json(ItemsController.itemBuilder(item))
+                    SocketsUtils.itemAdded(list._id, ItemsController.itemBuilder(item))
                   })
                 }
               })
