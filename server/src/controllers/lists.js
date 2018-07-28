@@ -1,262 +1,302 @@
 module.exports = (SocketsUtils) => {
+  const _ = require('lodash')
   const User = require('../models/user')
   const List = require('../models/list')
-  const ListItem = require('../models/listItem')
+  const ListItem = require('../models/item')
   const UsersController = require('./users')
   const ItemsController = require('./items')
+  const errors = require('../constants/errors')
 
   const ListsController = {}
 
+  const checkId = (id, type) => {
+    if (!id) return errors.noId({type, value: id})
+    return null
+  }
+
+  const checkRequired = (field, value) => {
+    if (!value) return errors.missingRequiredField(field)
+    return null
+  }
+
+  const checkQuantity = (qty) => {
+    const quantity = Number(qty)
+    if (quantity.isNaN || quantity <= 0) return errors.badQuantity(quantity)
+    return null
+  }
+
+  const checkAuthorized = (list, userId, action) => {
+    console.log(userId)
+    console.log(list.attendees)
+    if (list.attendees.indexOf(userId) < 0) return errors.notAuthorized(userId, action)
+    return null
+  }
+
+  const checkItemInList = (list, itemId) => {
+    if (list.items.indexOf(itemId) < 0) return errors.itemNotInList(list._id, itemId)
+    return null
+  }
+
   ListsController.createList = (req, res) => {
-    console.log('Creating list')
-    if (!req.body.userId) {
-      console.log('Creating list with new user')
-      createUserAndList(req, res)
-      return
+    const listName = req.body.listName
+    const userName = req.body.displayName
+    const userEmail = req.body.userEmail
+    const userId = req.body.userId
+    const err = checkRequired('listName', listName)
+    if (err) return res.status(err.status).json(err)
+    if (!userId) {
+      createUserAndList(listName, userName, userEmail).then((createdList)=> {
+        return res.status(200).json(createdList)
+      }, (err) => {
+        return res.status(err.status).json(err)
+      })
     }
-    console.log('Creating list with existing user')
-    User.findById(req.body.userId, (err, user) => {
-      if (err) {
-        console.log('Error while fetching existing user')
-        createUserAndList(req, res)
-      } else {
-        console.log('User found')
-        console.log(user)
-        createList(req, res, user)
-      }
+    UsersController.findById(userId).then((user) => {
+      createList(listName, user).then((createdList) => {
+        return res.status(200).json(createdList)
+      }, (err) => {
+        return res.status(err.status).json(err)
+      })
+    }, (err) => {
+      console.log('User not found')
+      console.log(err)
+      if (err.code === errors.code.RESOURCE_NOT_FOUND) {
+        createUserAndList(listName, userName, userEmail).then((createdList) => {
+          return res.status(200).json(createdList)
+        }, (err) => {
+          return res.status(err.status).json(err)
+        })
+      } else return res.status(err.status).json(err)
     })
   }
 
-  ListsController.joinList = (req, res) => {
-    if (!req.body.userId) {
-      createUserAndJoinList(req, res)
-      return
+  const createUserAndList = async (listName, userName, userEmail) => {
+    console.log('Checking prerequisites...')
+    let err = checkRequired('displayName', userName)
+    if (!err) err = checkRequired('userEmail', userEmail)
+    if (err) return Promise.reject(err)
+    console.log('done')
+    const owner = new User()
+    owner.name = userName
+    owner.email = userEmail
+    console.log('Saving user...')
+    const user = await UsersController.save(owner).catch(err => Promise.reject(err))
+    console.log('done')
+    return createList(listName, user)
+  }
+
+  const createList = async (name, owner) => {
+    const list = new List()
+    list.title = name
+    list.owner = owner
+    list.attendees = []
+    list.attendees.push(owner)
+    console.log('saving list...')
+    const savedList = await ListsController.save(list).catch(err => Promise.reject(err))
+    console.log('done')
+    return {
+      id: savedList._id,
+      owner: UsersController.userBuilder(owner)
     }
-    User.findById(req.body.userId, (err, user) => {
-      if (err) {
-        createUserAndJoinList(req, res)
-      } else {
-        addAttendeeToList(req.params.id, user, res)
-      }
+  }
+
+  ListsController.joinList = async (req, res) => {
+    const listId = req.params.id
+    const userName = req.params.displayName
+    const userEmail = req.params.userEmail
+    const userId = req.body.userId
+    const err = checkId(res, listId, 'list_id')
+    if (err) return res.status(err.status).send(err)
+    if (!userId) {
+      const data = await createUserAndJoinList(listId, userName, userEmail).catch(err => res.status(err.status).send(err))
+      res.status(200).json(data)
+      SocketsUtils.joinList(data.listId, data.attendee)
+    }
+    const user = await UsersController.findById(req.body.userId).catch(err => {
+      if (err.code === errors.code.RESOURCE_NOT_FOUND) {
+        createUserAndJoinList(listId, userName, userEmail).then((data => {
+          res.status(200).json(data)
+          SocketsUtils.joinList(data.listId, data.attendee)
+        }, (err) => res.status(err.status).send(err)))
+      } else res.status(err.status).send(err)
+    })
+    const data = await addAttendeeToList(listId, user).catch(err => res.status(err.status).send(err))
+    res.status(200).json(data)
+    SocketsUtils.joinList(data.listId, data.attendee)
+  }
+
+  const createUserAndJoinList = async (listId, userName, userEmail) => {
+    if (checkRequired('displayName', userName)) Promise.reject(checkRequired('displayName', userName))
+    if (checkRequired('userEmail', userEmail)) Promise.reject(checkRequired('userEmail', userEmail))
+    const attendee = new User()
+    attendee.name = userName
+    attendee.email = userEmail
+    const user = UsersController.save(attendee).catch(Promise.reject)
+    return addAttendeeToList(listId, user)
+  }
+
+  const addAttendeeToList = async (listId, user) => {
+    const list = await ListsController.findById(listId).catch(Promise.reject)
+    if (list.attendees.some((att) => att.id === user.id)) Promise.reject(errors.userAlreadyInList(list._id, user._id))
+    list.attendees.push(user)
+    const savedList = await ListsController.save(list).catch(Promise.reject)
+    return {
+      listId: savedList._id,
+      attendee: UsersController.userBuilder(user)
+    }
+  }
+
+  ListsController.findById = async (id) => {
+    return new Promise((resolve, reject) => {
+      List.findById(id, (err, list) => {
+        if (err) reject(errors.databaseAccess(err))
+        else if (list == null) reject(errors.ressourceNotFound({ type: 'list', id }))
+        else resolve(list)
+      })
     })
   }
 
   ListsController.getList = async (req, res) => {
-    List.findById(req.params.id, (err, list) => {
-      if (err) res.status(404).send(err)
-      else {
-        const data = {}
-        User.findById(list.owner, (err, owner) => {
-          if (err) res.status(404).send(err)
-          else {
-            buildAttendeesList(list).then((attendees) => {
-              buildItemsList(list).then((items) => {
-                data.id = list._id
-                data.title = list.title
-                data.owner = UsersController.userBuilder(owner)
-                data.attendees = attendees || []
-                data.items = items || []
-                res.json(data)
-              })
-            })
-          }
-        })
-      }
-    })
+    const err = checkId(req.params.id, 'list_id')
+    if (err) return res.status(err.status).send(err)
+    const list = await ListsController.findById(req.params.id).catch((err) => res.status(err.status).send(err))
+    const owner = await UsersController.findById(list.owner, true).catch((err) => res.status(err.status).send(err))
+    const attendees = await fetchListAttendees(list).catch((err) => res.status(err.status).send(err))
+    const items = await fetchListItems(list).catch((err) => res.status(err.status).send(err))
+    const data = {}
+    data.id = list._id
+    data.title = list.title
+    data.owner = owner
+    data.attendees = attendees || []
+    data.items = items || []
+    res.json(data)
   }
 
-  ListsController.getListsId = () => {
-    return new Promise(resolve => {
-      List.find({}, (err, lists) => {
-        if (err) {
-          console.log('ERROR WHILE FETCHING LISTS: ' + err)
-          resolve([])
-        }
-        resolve(lists.map(l => l._id))
-      })
-    })
-  }
-
-  ListsController.addItem = (req, res) => {
-    const listId = req.params.id
-    if (req.body.quantity <= 0) res.status(400).send('Bad quantity')
-    List.findById(listId, (err, list) => {
-      if (err) res.status(404).send(err)
-      else {
-        User.findById(req.body.author, (err, author) => {
-          if (err) res.status(404).send(err)
-          else {
-            console.log('Author ID')
-            console.log(req.body.author)
-            console.log('Attendees')
-            console.log(list.attendees)
-            console.log('Authorized?')
-            console.log(list.attendees.indexOf(req.body.author) >= 0)
-            if (list.attendees.indexOf(req.body.author) < 0) res.status(401).send('Not Authorized')
-            else {
-              const item = new ListItem()
-              item.quantity = req.body.quantity
-              item.name = req.body.name
-              item.author = author
-              item.responsible = []
-              item.save((err, item) => {
-                if (err) res.status(500).send(err)
-                else {
-                  list.items.push(item)
-                  list.save((err, list) => {
-                    if (err) res.status(500).send(err)
-                    res.status(201).json(ItemsController.itemBuilder(item))
-                    SocketsUtils.itemAdded(list._id, ItemsController.itemBuilder(item))
-                  })
-                }
-              })
-            }
-          }
-        })
-      }
-    })
-  }
-
-  ListsController.bringItem = (req, res) => {
-    console.log('User bring item')
-    const listId = req.params.listId
-    const itemId = req.params.itemId
-    List.findById(listId, (err, list) => {
-      if (err) res.status(404).send(err)
-      else {
-        console.log('List found')
-        ListItem.findById(itemId, (err, item) => {
-          if (err) res.status(404).send(err)
-          else if (list.items.indexOf(itemId) < 0) res.status(400).send(err)
-          else if (list.attendees.indexOf(req.body.userId) < 0) res.status(401).send('Not Authorized')
-          else {
-            console.log('Item found, belong to list and user authorized')
-            if (item.quantity === 1) {
-              console.log('Handle case 1 item')
-              if (item.responsible.length === 1) {
-                console.log('Already brought, clearing')
-                item.responsible = []
-              } else {
-                console.log('User bring it')
-                item.responsible = [req.body.userId]
-              }
-            } else {
-              if (!req.body.responsibleId) {
-                item.responsible.push(req.body.userId)
-              } else {
-                console.log('Not supported yet')
-              }
-            }
-            console.log('Saving item')
-            item.save((err, item) => {
-              if (err) res.status(500).send(err)
-              else {
-                console.log('Done sending response')
-                SocketsUtils.itemUpdated(listId, ItemsController.itemBuilder(item))
-                res.status(200).json(ItemsController.itemBuilder(item))
-              }
-            })
-          }
-        })
-      }
-    })
-  }
-
-  function createUserAndList (req, res) {
-    const owner = new User()
-    owner.name = req.body.displayName
-    owner.email = req.body.userEmail
-    console.log('Creating user')
-    console.log(owner)
-    owner.save((err, user) => {
-      if (err) res.status(500).send(err)
-      else {
-        console.log('Success')
-        createList(req, res, user)
-      }
-    })
-  }
-
-  function createList (req, res, owner) {
-    const list = new List()
-    list.title = req.body.listName
-    list.owner = owner
-    list.attendees = []
-    list.attendees.push(owner)
-    console.log('Creating list')
-    console.log(list)
-    list.save((err) => {
-      if (err) res.status(500).send(err)
-      else {
-        console.log('success')
-        res.status(201).send({
-          id: list._id,
-          owner: {
-            id: owner._id,
-            name: owner.name,
-            email: owner.email
-          }
-        })
-      }
-    })
-  }
-
-  const buildAttendeesList = async (list) => {
-    return new Promise(resolve => {
+  const fetchListAttendees = async (list) => {
+    return new Promise((resolve, reject) => {
       const attendeesPromise = []
       for (let i = 0; i < list.attendees.length; ++i) {
-        attendeesPromise.push(UsersController.fetchAndBuildUser(list.attendees[i]))
+        attendeesPromise.push(UsersController.findById(list.attendees[i], true))
       }
       Promise.all(attendeesPromise).then((attendees) => {
         resolve(attendees)
-      })
+      }, (err) => reject(err))
     })
   }
 
-  const buildItemsList = async (list) => {
-    return new Promise(resolve => {
+  const fetchListItems = async (list) => {
+    return new Promise((resolve, reject) => {
       const itemsPromises = []
       list.items.forEach(itemId => {
-        itemsPromises.push(ItemsController.fetchAndBuildItem(itemId))
+        itemsPromises.push(ItemsController.findById(itemId, true))
       })
       Promise.all(itemsPromises).then((items) => {
         resolve(items)
+      }, (err) => reject(err))
+    })
+  }
+
+  ListsController.addItem = async (req, res) => {
+    let err = checkId(req.params.id, 'list_id')
+    if (!err) err = checkRequired('name', req.body.name)
+    if (!err) err = checkRequired('author', req.body.author)
+    if (!err) err = checkQuantity(req.body.quantity)
+    if (err) return res.status(err.status).send(err)
+
+    const list = await ListsController.findById(req.params.id).catch((err) => res.status(err.status).send(err))
+    const author = await UsersController.findById(req.body.author).catch((err) => res.status(err.status).send(err))
+
+    err = checkAuthorized(res, list, author._id, 'add item')
+    if (err) return res.status(err.status).send(err)
+
+    let item = new ListItem()
+    item.quantity = req.body.quantity
+    item.name = req.body.name
+    item.author = author
+    item.responsible = []
+
+    item = await ItemsController.save(item).catch(err => res.status(err.status).send(err))
+    await addItemToList(list, item).catch(err => res.status(err.status).send(err))
+
+    SocketsUtils.itemAdded(list._id, ItemsController.itemBuilder(item))
+  }
+
+  const addItemToList = async (list, item) => {
+    return new Promise((resolve, reject) => {
+      list.items.push(item)
+      list.save((err, list) => {
+        if (err) reject(errors.databaseAccess(err))
+        else resolve(list)
       })
     })
   }
 
-  function createUserAndJoinList (req, res) {
-    const attendee = new User()
-    attendee.name = req.body.displayName
-    attendee.email = req.body.userEmail
-    attendee.save((err, user) => {
-      if (err) res.status(500).send(err)
-      else {
-        addAttendeeToList(req.params.id, user, res)
+  ListsController.bringItem = async (req, res) => {
+    let err = checkId(req.body.userId, 'user')
+    if (err) return res.send(err.status).send(err)
+    const list = await ListsController.findById(req.params.listId).catch(err => res.send(err.status).send(err))
+    const item = await ItemsController.findById(req.params.itemId).catch(err => res.send(err.status).send(err))
+    const user = await UsersController.findById(req.body.userId).catch(err => res.status(err.status).send(err))
+    err = checkAuthorized(list, user._id, 'bring/clear item')
+    if (!err) err = checkItemInList(list, item._id)
+    if (err) return res.send(err.status).send(err)
+
+    if (item.quantity === 1) {
+      console.log('Handle case 1 item')
+      if (item.responsible.length === 1) {
+        console.log('Already brought, clearing')
+        item.responsible = []
+      } else {
+        console.log('User bring it')
+        item.responsible = [user._id]
       }
+    } else {
+      if (!req.body.responsibleId) {
+        item.responsible.push(user._id)
+      } else {
+        console.log('Not supported yet')
+      }
+    }
+    console.log('Saving item')
+    const savedItem = await ItemsController.save(item, true).catch(err => res.status(err.status).send(err))
+    console.log('Done sending response')
+    SocketsUtils.itemUpdated(list._id, savedItem)
+    res.status(200).json(savedItem)
+  }
+
+  ListsController.removeItem = async (req, res) => {
+    let err = checkId(req.query.userId, 'user')
+    if (err) return res.send(err.status).send(err)
+    const list = await ListsController.findById(req.params.listId).catch(err => res.send(err.status).send(err))
+    const item = await ItemsController.findById(req.params.itemId).catch(err => res.send(err.status).send(err))
+    const user = await UsersController.findById(req.body.userId).catch(err => res.status(err.status).send(err))
+    err = checkAuthorized(list, user._id, 'bring/clear item')
+    if (!err) err = checkItemInList(list, item._id)
+    if (err) return res.send(err.status).send(err)
+    const updatedList = await removeItemFromList(list, item._id).catch(err => res.status(err.status).send(err))
+    const deletedItem = await ItemsController.delete(item._id).catch(err => res.status(err.status).send(err))
+    SocketsUtils.itemRemoved(updatedList._id, deletedItem._id)
+    return res.status(200).send({ id: deletedItem._id })
+  }
+
+  const removeItemFromList = (list, itemId) => {
+    return new Promise((resolve, reject) => {
+      _.pull(list.items, itemId)
+      list.save((err, list) => {
+        if (err) reject(errors.databaseAccess(err))
+        else resolve(list)
+      })
     })
   }
 
-  function addAttendeeToList (listId, user, res) {
-    List.findById(listId, (err, list) => {
-      if (err) res.status(404).send(err)
-      else if (list.attendees.some((att) => att.id === user.id)) {
-        res.status(400).send('User already attend this list')
-      } else {
-        list.attendees.push(user)
-        list.save((err, list) => {
-          if (err) res.status(500).send(err)
-          else {
-            const userJson = UsersController.userBuilder(user)
-            res.json({
-              listId: list._id,
-              attendee: userJson
-            })
-            SocketsUtils.joinList(listId, userJson)
-          }
-        })
-      }
+  ListsController.save = (list) => {
+    return new Promise((resolve, reject) => {
+      list.save((err, list) => {
+        if (err) reject(errors.databaseAccess(err))
+        resolve(list)
+      })
     })
   }
+
   return ListsController
 }

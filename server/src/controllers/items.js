@@ -1,8 +1,9 @@
-const ListItem = require('../models/listItem')
+const ListItem = require('../models/item')
+const errors = require('../constants/errors')
 
-const ItemController = {}
+const ItemsController = {}
 
-ItemController.itemBuilder = (item) => {
+ItemsController.itemBuilder = (item) => {
   return {
     id: item._id,
     name: item.name,
@@ -13,15 +14,34 @@ ItemController.itemBuilder = (item) => {
   }
 }
 
-ItemController.fetchAndBuildItem = (itemId, res) => {
-  return new Promise(resolve => {
-    ListItem.findById(itemId, (err, item) => {
-      if (err) res.status(404).send(err)
-      else {
-        resolve(ItemController.itemBuilder(item))
-      }
+ItemsController.findById = async (id, build = false) => {
+  return new Promise((resolve, reject) => {
+    ListItem.findById(id, (err, item) => {
+      if (err) reject(errors.databaseAccess(err))
+      else if (item == null) reject(errors.ressourceNotFound({ type: 'item', id }))
+      else if (build) resolve(ItemsController.itemBuilder(item))
+      else resolve(item)
     })
   })
 }
 
-module.exports = ItemController
+ItemsController.save = async (item, build = false) => {
+  return new Promise((resolve, reject) => {
+    item.save((err, item) => {
+      if (err) reject(errors.databaseAccess(err))
+      else if (build) resolve(ItemsController.itemBuilder(item))
+      else resolve(item)
+    })
+  })
+}
+
+ItemsController.delete = async (itemId) => {
+  return new Promise((resolve, reject) => {
+    ListItem.findByIdAndRemove(itemId, (err, item) => {
+      if (err) reject(errors.databaseAccess(err))
+      else resolve(item)
+    })
+  })
+}
+
+module.exports = ItemsController

@@ -7,5 +7,6 @@ module.exports = (SocketsUtils) => {
   router.post('/api/lists/:id/join', ListsController.joinList)
   router.post('/api/lists/:id/items', ListsController.addItem)
   router.patch('/api/lists/:listId/items/:itemId', ListsController.bringItem)
+  router.delete('/api/lists/:listId/items/:itemId', ListsController.removeItem)
   return router
 }

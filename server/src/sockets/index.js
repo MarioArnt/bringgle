@@ -50,5 +50,8 @@ module.exports = (io) => {
   SocketsUtils.itemUpdated = (listId, item) => {
     io.sockets.to(listId).emit('item updated', item)
   }
+  SocketsUtils.itemRemoved = (listId, itemId) => {
+    io.sockets.to(listId).emit('item removed', itemId)
+  }
   return SocketsUtils
 }
