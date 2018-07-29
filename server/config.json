@@ -1,0 +1,19 @@
+{
+  "database": {
+    "development": {
+      "host": "localhost",
+      "port": "27017",
+      "name": "bringgle"
+    },
+    "production": {
+      "host": "localhost",
+      "port": "27017",
+      "name": "bringgle"
+    },
+    "test": {
+      "host": "localhost",
+      "port": "27017",
+      "name": "bringgle-test"
+    }
+  }
+}
