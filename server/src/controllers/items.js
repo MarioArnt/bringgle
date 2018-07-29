@@ -4,7 +4,7 @@ const errors = require('../constants/errors')
 const ItemsController = {}
 
 ItemsController.itemBuilder = (item) => {
-  return {
+  const build = {
     id: item._id,
     name: item.name,
     quantity: item.quantity,
@@ -12,6 +12,8 @@ ItemsController.itemBuilder = (item) => {
     responsible: item.responsible,
     created: item.created
   }
+  Object.keys(build).forEach(key => build[key] === undefined && delete build[key])
+  return build
 }
 
 ItemsController.findById = async (id, build = false) => {

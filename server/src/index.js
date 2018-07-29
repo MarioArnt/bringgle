@@ -30,4 +30,7 @@ server.listen(process.env.PORT || 8081)
 console.log('Magic happens on port 8081')
 SocketsUtils.initialize()
 
-module.exports = app
+module.exports = {
+  app,
+  io
+}

@@ -29,12 +29,12 @@ errors.ressourceNotFound = (details) => {
   }
 }
 
-errors.noId = (details) => {
+errors.noId = (type) => {
   return {
     code: errors.code.NO_ID,
     status: 400,
     msg: 'Invalid ID',
-    details
+    details: { type }
   }
 }
 

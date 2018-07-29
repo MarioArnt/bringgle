@@ -10,7 +10,7 @@ module.exports = (SocketsUtils) => {
   const ListsController = {}
 
   const checkId = (id, type) => {
-    if (!id) return errors.noId({type, value: id})
+    if (!id) return errors.noId(type)
     return null
   }
 
@@ -156,20 +156,34 @@ module.exports = (SocketsUtils) => {
     })
   }
 
+  const uncastFalsyRequestParamter = (param) => {
+    if (param === 'undefined') return undefined
+    if (param === 'null') return null
+    return param
+  }
+
   ListsController.getList = async (req, res) => {
-    const err = checkId(req.params.id, 'list_id')
+    const err = checkId(uncastFalsyRequestParamter(req.params.id), 'list_id')
     if (err) return res.status(err.status).send(err)
-    const list = await ListsController.findById(req.params.id).catch((err) => res.status(err.status).send(err))
-    const owner = await UsersController.findById(list.owner, true).catch((err) => res.status(err.status).send(err))
-    const attendees = await fetchListAttendees(list).catch((err) => res.status(err.status).send(err))
-    const items = await fetchListItems(list).catch((err) => res.status(err.status).send(err))
-    const data = {}
-    data.id = list._id
-    data.title = list.title
-    data.owner = owner
-    data.attendees = attendees || []
-    data.items = items || []
-    res.json(data)
+    fetchListData(req.params.id).then((data) => res.json(data), (err) => res.status(err.status).send(err))
+  }
+
+  const fetchListData = async (id) => {
+    const list = await ListsController.findById(id).catch((err) => Promise.reject(err))
+    const owner = await UsersController.findById(list.owner, true).catch((err) => Promise.reject(err))
+    const attendees = await fetchListAttendees(list).catch((err) => Promise.reject(err))
+    const items = await fetchListItems(list).catch((err) => Promise.reject(err))
+    return ListsController.listBuilder(list, owner, attendees, items)
+  }
+
+  ListsController.listBuilder = (list, owner, attendees, items) => {
+    return {
+      id: list._id,
+      title: list.title,
+      owner,
+      attendees: attendees || [],
+      items: items || []
+    }
   }
 
   const fetchListAttendees = async (list) => {
