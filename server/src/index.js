@@ -32,5 +32,5 @@ SocketsUtils.initialize()
 
 module.exports = {
   app,
-  io
+  SocketsUtils
 }

@@ -50,38 +50,33 @@ module.exports = (SocketsUtils) => {
       }, (err) => {
         return res.status(err.status).json(err)
       })
-    }
-    UsersController.findById(userId).then((user) => {
-      createList(listName, user).then((createdList) => {
-        return res.status(200).json(createdList)
-      }, (err) => {
-        return res.status(err.status).json(err)
-      })
-    }, (err) => {
-      console.log('User not found')
-      console.log(err)
-      if (err.code === errors.code.RESOURCE_NOT_FOUND) {
-        createUserAndList(listName, userName, userEmail).then((createdList) => {
+    } else {
+      UsersController.findById(userId).then((user) => {
+        createList(listName, user).then((createdList) => {
           return res.status(200).json(createdList)
         }, (err) => {
           return res.status(err.status).json(err)
         })
-      } else return res.status(err.status).json(err)
-    })
+      }, (err) => {
+        if (err.code === errors.code.RESOURCE_NOT_FOUND) {
+          createUserAndList(listName, userName, userEmail).then((createdList) => {
+            return res.status(200).json(createdList)
+          }, (err) => {
+            return res.status(err.status).json(err)
+          })
+        } else return res.status(err.status).json(err)
+      })
+    }
   }
 
   const createUserAndList = async (listName, userName, userEmail) => {
-    console.log('Checking prerequisites...')
     let err = checkRequired('displayName', userName)
     if (!err) err = checkRequired('userEmail', userEmail)
     if (err) return Promise.reject(err)
-    console.log('done')
     const owner = new User()
     owner.name = userName
     owner.email = userEmail
-    console.log('Saving user...')
     const user = await UsersController.save(owner).catch(err => Promise.reject(err))
-    console.log('done')
     return createList(listName, user)
   }
 
@@ -91,55 +86,65 @@ module.exports = (SocketsUtils) => {
     list.owner = owner
     list.attendees = []
     list.attendees.push(owner)
-    console.log('saving list...')
     const savedList = await ListsController.save(list).catch(err => Promise.reject(err))
-    console.log('done')
     return {
       id: savedList._id,
       owner: UsersController.userBuilder(owner)
     }
   }
 
-  ListsController.joinList = async (req, res) => {
+  ListsController.joinList = (req, res) => {
     const listId = req.params.id
-    const userName = req.params.displayName
-    const userEmail = req.params.userEmail
+    const userName = req.body.displayName
+    const userEmail = req.body.userEmail
     const userId = req.body.userId
-    const err = checkId(res, listId, 'list_id')
+    const err = checkId(uncastFalsyRequestParamter(listId), 'list_id')
     if (err) return res.status(err.status).send(err)
     if (!userId) {
-      const data = await createUserAndJoinList(listId, userName, userEmail).catch(err => res.status(err.status).send(err))
-      res.status(200).json(data)
-      SocketsUtils.joinList(data.listId, data.attendee)
-    }
-    const user = await UsersController.findById(req.body.userId).catch(err => {
-      if (err.code === errors.code.RESOURCE_NOT_FOUND) {
-        createUserAndJoinList(listId, userName, userEmail).then((data => {
-          res.status(200).json(data)
+      createUserAndJoinList(listId, userName, userEmail).then((data) => {
+        SocketsUtils.joinList(data.listId, data.attendee)
+        return res.status(200).json(data)
+      }).catch((err) => { return res.status(err.status).send(err) })
+    } else {
+      UsersController.findById(req.body.userId).then((user) => {
+        addAttendeeToList(listId, user).then((data) => {
           SocketsUtils.joinList(data.listId, data.attendee)
-        }, (err) => res.status(err.status).send(err)))
-      } else res.status(err.status).send(err)
-    })
-    const data = await addAttendeeToList(listId, user).catch(err => res.status(err.status).send(err))
-    res.status(200).json(data)
-    SocketsUtils.joinList(data.listId, data.attendee)
+          return res.status(200).json(data)
+        }).catch((err) => {
+          return res.status(err.status).send(err)
+        })
+      }, (err) => {
+        if (err.code === errors.code.RESOURCE_NOT_FOUND) {
+          createUserAndJoinList(listId, userName, userEmail).then((data) => {
+            SocketsUtils.joinList(data.listId, data.attendee)
+            return res.status(200).json(data)
+          }).catch((err) => {
+            return res.status(err.status).send(err)
+          })
+        } else return res.status(err.status).send(err)
+      })
+    }
   }
 
   const createUserAndJoinList = async (listId, userName, userEmail) => {
-    if (checkRequired('displayName', userName)) Promise.reject(checkRequired('displayName', userName))
-    if (checkRequired('userEmail', userEmail)) Promise.reject(checkRequired('userEmail', userEmail))
+    let err = checkRequired('displayName', userName)
+    if (!err) err = checkRequired('userEmail', userEmail)
+    if (err) return Promise.reject(err)
     const attendee = new User()
     attendee.name = userName
     attendee.email = userEmail
-    const user = UsersController.save(attendee).catch(Promise.reject)
+    const user = await UsersController.save(attendee).catch((err) => Promise.reject(err))
     return addAttendeeToList(listId, user)
   }
 
   const addAttendeeToList = async (listId, user) => {
-    const list = await ListsController.findById(listId).catch(Promise.reject)
-    if (list.attendees.some((att) => att.id === user.id)) Promise.reject(errors.userAlreadyInList(list._id, user._id))
+    const list = await ListsController.findById(listId).catch((err) => Promise.reject(err))
+    if (list.attendees.indexOf(user._id) >= 0) return Promise.reject(errors.userAlreadyInList(list._id, user._id))
     list.attendees.push(user)
-    const savedList = await ListsController.save(list).catch(Promise.reject)
+    const savedList = await ListsController.save(list).catch((err) => {
+      console.log(err)
+      return Promise.reject(err)
+    })
     return {
       listId: savedList._id,
       attendee: UsersController.userBuilder(user)

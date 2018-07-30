@@ -4,12 +4,13 @@ const sinon = require('sinon')
 const chai = require('chai')
 const chaiHttp = require('chai-http')
 const should = chai.should()
+const assert = chai.assert
 const server = require('../../src/index')
 const errors = require('../../src/constants/errors')
 const List = require('../../src/models/list')
 const User = require('../../src/models/user')
 const ListItem = require('../../src/models/item')
-const SocketsUtils = require('../../src/sockets')(server.io)
+const SocketsUtils = server.SocketsUtils
 const ListsController = require('../../src/controllers/lists')(SocketsUtils)
 const UsersController = require('../../src/controllers/users')
 const ItemsController = require('../../src/controllers/items')
@@ -541,44 +542,58 @@ describe('List Controller', () => {
         })
     })
   })
-  describe.skip('POST /api/lists/:id/join', () => {
-    it.skip('should return 400 if ID is not given')
-    it.skip('should return 400 if ID is not an object ID')
-    it('should return 400 if list name is not defined', (done) => {
-      const error = errors.missingRequiredField('listName')
-      const listData = {}
+  describe('POST /api/lists/:id/join', () => {
+    let requester
+    let spy
+    beforeEach(() => {
+      requester = chai.request(server.app).keepOpen()
+      sinon.stub(User, 'findById')
+      sinon.stub(List, 'findById')
+      sinon.stub(User.prototype, 'save')
+      sinon.stub(List.prototype, 'save')
+      spy = sinon.spy(SocketsUtils, 'joinList')
+    })
+    afterEach(() => {
+      List.prototype.save.restore()
+      User.findById.restore()
+      List.findById.restore()
+      User.prototype.save.restore()
+      SocketsUtils.joinList.restore()
+      requester.close()
+    })
+    it('should return 400 if ID is null', (done) => {
+      const id = null
+      const expectedError = errors.noId('list_id')
       requester
-        .post('/api/lists')
-        .send(listData)
+        .post(`/api/lists/${id}/join`)
+        .send({})
         .end((err, res) => {
-          if (err) console.log(err)
-          res.should.have.status(error.status)
-          res.body.should.be.eql(error)
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
           done()
         })
     })
-    it('should return 400 if list name is an empty string', (done) => {
-      const error = errors.missingRequiredField('listName')
-      const listData = {listName: ''}
+    it('should return 400 if ID is undefined', (done) => {
+      const id = undefined
+      const expectedError = errors.noId('list_id')
       requester
-        .post('/api/lists')
-        .send(listData)
+        .post(`/api/lists/${id}/join`)
+        .send({})
         .end((err, res) => {
-          if (err) console.log(err)
-          res.should.have.status(error.status)
-          res.body.should.be.eql(error)
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
           done()
         })
     })
     it('should return 400 if user id is not given and user email is not defined', (done) => {
+      const id = '5b5c39c618774c33b4b0a010'
       const error = errors.missingRequiredField('userEmail')
-      const listData = {
-        listName: 'Awesome List',
+      const joinData = {
         displayName: 'John'
       }
       requester
-        .post('/api/lists')
-        .send(listData)
+        .post(`/api/lists/${id}/join`)
+        .send(joinData)
         .end((err, res) => {
           if (err) console.log(err)
           res.should.have.status(error.status)
@@ -587,15 +602,15 @@ describe('List Controller', () => {
         })
     })
     it('should return 400 if user id is not given and user email is an empty string', (done) => {
+      const id = '5b5c39c618774c33b4b0a010'
       const error = errors.missingRequiredField('userEmail')
-      const listData = {
-        listName: 'Awesome List',
+      const joinData = {
         displayName: 'John',
         userEmail: ''
       }
       requester
-        .post('/api/lists')
-        .send(listData)
+        .post(`/api/lists/${id}/join`)
+        .send(joinData)
         .end((err, res) => {
           if (err) console.log(err)
           res.should.have.status(error.status)
@@ -604,13 +619,11 @@ describe('List Controller', () => {
         })
     })
     it('should return 400 if user id is not given and user name is not defined', (done) => {
+      const id = '5b5c39c618774c33b4b0a010'
       const error = errors.missingRequiredField('displayName')
-      const listData = {
-        listName: 'Awesome List',
-      }
       requester
-        .post('/api/lists')
-        .send(listData)
+        .post(`/api/lists/${id}/join`)
+        .send({})
         .end((err, res) => {
           if (err) console.log(err)
           res.should.have.status(error.status)
@@ -619,14 +632,14 @@ describe('List Controller', () => {
         })
     })
     it('should return 400 if user id is not given and user name is an empty string', (done) => {
+      const id = '5b5c39c618774c33b4b0a010'
       const error = errors.missingRequiredField('displayName')
-      const listData = {
-        listName: 'Awesome List',
+      const joinData = {
         displayName: ''
       }
       requester
-        .post('/api/lists')
-        .send(listData)
+        .post(`/api/lists/${id}/join`)
+        .send(joinData)
         .end((err, res) => {
           if (err) console.log(err)
           res.should.have.status(error.status)
@@ -635,121 +648,147 @@ describe('List Controller', () => {
         })
     })
     it('should return 200 and join list with current user if user id is given', (done) => {
-      const listData = {
-        listName: 'Awesome list',
+      const id = '5b5ad5d1bae6215a38720547'
+      const joinData = {
         userId: '5b5ad5d1bae6215a38720546'
       }
-      const savedList = {
+      const list = new List({
         _id: '5b5ad5d1bae6215a38720547',
         name: 'Awesome List',
-        owner: '5b5ad5d1bae6215a38720546',
-        attendees: [],
+        owner: '5b5ad5d1bae6215a38720544',
+        attendees: ['5b5ad5d1bae6215a38720544'],
         items: []
-      }
+      })
       const userData = {
         _id: '5b5ad5d1bae6215a38720546',
         name: 'John Doe',
         email: 'john@doe.com'
       }
       const expectedResult = {
-        id: '5b5ad5d1bae6215a38720547',
-        owner: UsersController.userBuilder(userData)
+        listId: id,
+        attendee: UsersController.userBuilder(userData)
       }
-      List.prototype.save.yields(null, savedList)
       User.findById.yields(null, userData)
-
+      List.findById.yields(null, list)
+      List.prototype.save.yields(null, { _id: id })
       requester
-        .post('/api/lists')
-        .send(listData)
+        .post(`/api/lists/${id}/join`)
+        .send(joinData)
         .end((err, res) => {
           if (err) console.log(err)
           res.should.have.status(200)
           res.body.should.be.eql(expectedResult)
+          spy.calledOnce.should.be.eql(true)
+          spy.calledWith(id, UsersController.userBuilder(userData)).should.be.eql(true)
           done()
         })
     })
     it('should return 200 and create user and join list if user id is not given', (done) => {
-      const listData = {
-        listName: 'Awesome list',
+      const id = '5b5ad5d1bae6215a38720547'
+      const joinData = {
         displayName: 'John Doe',
         userEmail: 'john@doe.com'
       }
-      const savedList = {
+      const list = new List({
         _id: '5b5ad5d1bae6215a38720547',
         name: 'Awesome List',
-        owner: '5b5ad5d1bae6215a38720546',
-        attendees: [],
+        owner: '5b5ad5d1bae6215a38720544',
+        attendees: ['5b5ad5d1bae6215a38720544'],
         items: []
-      }
+      })
       const userData = {
         _id: '5b5ad5d1bae6215a38720546',
         name: 'John Doe',
         email: 'john@doe.com'
       }
       const expectedResult = {
-        id: '5b5ad5d1bae6215a38720547',
-        owner: UsersController.userBuilder(userData)
+        listId: id,
+        attendee: UsersController.userBuilder(userData)
       }
-      List.prototype.save.yields(null, savedList)
       User.prototype.save.yields(null, userData)
-
+      List.findById.yields(null, list)
+      List.prototype.save.yields(null, { _id: id })
       requester
-        .post('/api/lists')
-        .send(listData)
+        .post(`/api/lists/${id}/join`)
+        .send(joinData)
         .end((err, res) => {
           if (err) console.log(err)
           res.should.have.status(200)
           res.body.should.be.eql(expectedResult)
+          spy.calledOnce.should.be.eql(true)
+          spy.calledWith(id, UsersController.userBuilder(userData)).should.be.eql(true)
           done()
         })
     })
     it('should return 200 and create user and join list if user id is given but not found in database', (done) => {
-      const listData = {
-        listName: 'Awesome list',
+      const id = '5b5ad5d1bae6215a38720547'
+      const joinData = {
         userId: '5b5ad5d1bae6215a38720546',
         displayName: 'John Doe',
         userEmail: 'john@doe.com'
       }
-      const savedList = {
+      const list = new List({
         _id: '5b5ad5d1bae6215a38720547',
         name: 'Awesome List',
-        owner: '5b5ad5d1bae6215a38720546',
-        attendees: [],
+        owner: '5b5ad5d1bae6215a38720544',
+        attendees: ['5b5ad5d1bae6215a38720544'],
         items: []
-      }
+      })
       const userData = {
         _id: '5b5ad5d1bae6215a38720546',
         name: 'John Doe',
         email: 'john@doe.com'
       }
       const expectedResult = {
-        id: '5b5ad5d1bae6215a38720547',
-        owner: UsersController.userBuilder(userData)
+        listId: id,
+        attendee: UsersController.userBuilder(userData)
       }
-      List.prototype.save.yields(null, savedList)
       User.findById.yields(null, null)
       User.prototype.save.yields(null, userData)
-
+      List.findById.yields(null, list)
+      List.prototype.save.yields(null, { _id: id })
       requester
-        .post('/api/lists')
-        .send(listData)
+        .post(`/api/lists/${id}/join`)
+        .send(joinData)
         .end((err, res) => {
+          if (err) console.log(err)
           res.should.have.status(200)
           res.body.should.be.eql(expectedResult)
+          spy.calledOnce.should.be.eql(true)
+          spy.calledWith(id, UsersController.userBuilder(userData)).should.be.eql(true)
           done()
         })
     })
     it('should return 400 if user id is given but not found in database and missing display name or email', (done) => {
-      const listData = {
-        listName: 'Awesome list',
+      const id = '5b5ad5d1bae6215a38720547'
+      const joinData = {
         userId: '5b5ad5d1bae6215a38720546',
-        displayName: 'John'
+        displayName: 'John Doe'
       }
-      const savedList = {
-        _id: '5b5ad5d1bae6215a38720547',
+      User.findById.yields(null, null)
+      const expectedError = errors.missingRequiredField('userEmail')
+      requester
+        .post(`/api/lists/${id}/join`)
+        .send(joinData)
+        .end((err, res) => {
+          if (err) console.log(err)
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 400 if user already attend the list', (done) => {
+      const id = '5b5ad5d1bae6215a38720547'
+      const joinData = {
+        userId: '5b5ad5d1bae6215a38720546',
+        displayName: 'John Doe',
+        userEmail: 'john@doe.com'
+      }
+      const list = {
+        _id: id,
         name: 'Awesome List',
-        owner: '5b5ad5d1bae6215a38720546',
-        attendees: [],
+        owner: '5b5ad5d1bae6215a38720544',
+        attendees: ['5b5ad5d1bae6215a38720544', '5b5ad5d1bae6215a38720546'],
         items: []
       }
       const userData = {
@@ -757,83 +796,118 @@ describe('List Controller', () => {
         name: 'John Doe',
         email: 'john@doe.com'
       }
-      const expectedError = errors.missingRequiredField('userEmail')
-      List.prototype.save.yields(null, savedList)
+      const expectedError = errors.userAlreadyInList(list._id, userData._id)
       User.findById.yields(null, null)
       User.prototype.save.yields(null, userData)
+      List.findById.yields(null, list)
       requester
-        .post('/api/lists')
-        .send(listData)
+        .post(`/api/lists/${id}/join`)
+        .send(joinData)
         .end((err, res) => {
+          if (err) console.log(err)
           res.should.have.status(expectedError.status)
           res.body.should.be.eql(expectedError)
           done()
         })
     })
     it('should return 500 if database operation save user fails', (done) => {
-      const listData = {
-        listName: 'Awesome list',
-        userId: '5b5ad5d1bae6215a38720546',
-        displayName: 'John',
+      const id = '5b5ad5d1bae6215a38720547'
+      const joinData = {
+        displayName: 'John Doe',
         userEmail: 'john@doe.com'
       }
-      const errorDB = {type: 'DB', details: 'Mocked failure'}
+      const errorDB = { type: 'DB', details: 'Mocked DB failure' }
       const expectedError = errors.databaseAccess(errorDB)
-      User.findById.yields(null, null)
       User.prototype.save.yields(errorDB, null)
       requester
-        .post('/api/lists')
-        .send(listData)
+        .post(`/api/lists/${id}/join`)
+        .send(joinData)
         .end((err, res) => {
+          if (err) console.log(err)
           res.should.have.status(expectedError.status)
           res.body.should.be.eql(expectedError)
           done()
         })
     })
     it('should return 500 if database operation find user fails', (done) => {
-      const listData = {
-        listName: 'Awesome list',
+      const id = '5b5ad5d1bae6215a38720547'
+      const joinData = {
         userId: '5b5ad5d1bae6215a38720546',
-        displayName: 'John',
-        email: 'john@doe.com'
+        userEmail: 'john@doe.com'
       }
-      const errorDB = {type: 'DB', details: 'Mocked failure'}
+      const errorDB = { type: 'DB', details: 'Mocked DB failure' }
       const expectedError = errors.databaseAccess(errorDB)
       User.findById.yields(errorDB, null)
       requester
-        .post('/api/lists')
-        .send(listData)
+        .post(`/api/lists/${id}/join`)
+        .send(joinData)
         .end((err, res) => {
+          if (err) console.log(err)
           res.should.have.status(expectedError.status)
           res.body.should.be.eql(expectedError)
           done()
         })
     })
     it('should return 500 if database operation save list fails', (done) => {
-      const listData = {
-        listName: 'Awesome list',
+      const id = '5b5ad5d1bae6215a38720547'
+      const joinData = {
         userId: '5b5ad5d1bae6215a38720546',
-        displayName: 'John'
+        displayName: 'John Doe',
+        userEmail: 'john@doe.com'
+      }
+      const list = new List({
+        _id: id,
+        name: 'Awesome List',
+        owner: '5b5ad5d1bae6215a38720544',
+        attendees: ['5b5ad5d1bae6215a38720544, 5b5ad5d1bae6215a38720546'],
+        items: []
+      })
+      const userData = {
+        _id: '5b5ad5d1bae6215a38720546',
+        name: 'John Doe',
+        email: 'john@doe.com'
+      }
+      const errorDB = { type: 'DB', details: 'Mocked DB failure' }
+      const expectedError = errors.databaseAccess(errorDB)
+      User.findById.yields(null, null)
+      User.prototype.save.yields(null, userData)
+      List.findById.yields(null, list)
+      List.prototype.save.yields(errorDB, null)
+      requester
+        .post(`/api/lists/${id}/join`)
+        .send(joinData)
+        .end((err, res) => {
+          if (err) console.log(err)
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 500 if database operation find list fails', (done) => {
+      const id = '5b5ad5d1bae6215a38720547'
+      const joinData = {
+        displayName: 'John Doe',
+        userEmail: 'john@doe.com'
       }
       const userData = {
         _id: '5b5ad5d1bae6215a38720546',
         name: 'John Doe',
         email: 'john@doe.com'
       }
-      const errorDB = {type: 'DB', details: 'Mocked failure'}
+      const errorDB = { type: 'DB', details: 'Mocked DB failure' }
       const expectedError = errors.databaseAccess(errorDB)
-      List.prototype.save.yields(errorDB, null)
-      User.findById.yields(null, userData)
+      User.prototype.save.yields(null, userData)
+      List.findById.yields(errorDB, null)
       requester
-        .post('/api/lists')
-        .send(listData)
+        .post(`/api/lists/${id}/join`)
+        .send(joinData)
         .end((err, res) => {
+          if (err) console.log(err)
           res.should.have.status(expectedError.status)
           res.body.should.be.eql(expectedError)
           done()
         })
     })
-    it.skip('should emit socket event if suceeds')
   })
   describe.skip('PATCH /api/lists/:id/items/:itemId')
   describe.skip('POST /api/lists/:listId/items')

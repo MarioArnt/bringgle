@@ -78,7 +78,7 @@ errors.itemNotInList = (listId, itemId) => {
 
 errors.userAlreadyInList = (listId, userId) => {
   return {
-    code: errors.USER_ALREADY_IN_LIST,
+    code: errors.code.USER_ALREADY_IN_LIST,
     status: 400,
     msg: 'User already attend this list',
     details: {listId, userId}
