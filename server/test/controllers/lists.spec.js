@@ -1,3 +1,4 @@
+/*eslint-disable */
 process.env.NODE_ENV = 'test'
 
 const sinon = require('sinon')
@@ -910,6 +911,626 @@ describe('List Controller', () => {
     })
   })
   describe.skip('PATCH /api/lists/:id/items/:itemId')
-  describe.skip('POST /api/lists/:listId/items')
-  describe.skip('DELETE /api/lists/:listId/items/:itemId')
+  describe('POST /api/lists/:listId/items', () => {
+    let requester
+    let spy
+    beforeEach(() => {
+      requester = chai.request(server.app).keepOpen()
+      sinon.stub(User, 'findById')
+      sinon.stub(List, 'findById')
+      sinon.stub(List.prototype, 'save')
+      sinon.stub(ListItem.prototype, 'save')
+      spy = sinon.spy(SocketsUtils, 'itemAdded')
+    })
+    afterEach(() => {
+      User.findById.restore()
+      List.findById.restore()
+      List.prototype.save.restore()
+      ListItem.prototype.save.restore()
+      SocketsUtils.itemAdded.restore()
+      requester.close()
+    })
+    it('should return 400 if list ID is null', (done) => {
+      const id = null
+      const expectedError = errors.noId('list_id')
+      requester
+        .post(`/api/lists/${id}/items`)
+        .send({})
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 400 if list ID undefined', (done) => {
+      const id = undefined
+      const expectedError = errors.noId('list_id')
+      requester
+        .post(`/api/lists/${id}/items`)
+        .send({})
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 400 if item name is missing', (done) => {
+      const id = '5b5c39c618774c33b4b0a010'
+      const addItemData = {author: '5b5c39c618774c33b4b0a011', quantity: 1}
+      const expectedError = errors.missingRequiredField('name')
+      requester
+        .post(`/api/lists/${id}/items`)
+        .send(addItemData)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 400 if item name is an empty string', (done) => {
+      const id = '5b5c39c618774c33b4b0a010'
+      const addItemData = {name: '', author: '5b5c39c618774c33b4b0a011', quantity: 1}
+      const expectedError = errors.missingRequiredField('name')
+      requester
+        .post(`/api/lists/${id}/items`)
+        .send(addItemData)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 400 if item author is missing', (done) => {
+      const id = '5b5c39c618774c33b4b0a010'
+      const addItemData = {name: 'Item', quantity: 1}
+      const expectedError = errors.missingRequiredField('author')
+      requester
+        .post(`/api/lists/${id}/items`)
+        .send(addItemData)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 400 if item author is an empty string', (done) => {
+      const id = '5b5c39c618774c33b4b0a010'
+      const addItemData = {name: 'Item', author: '', quantity: 1}
+      const expectedError = errors.missingRequiredField('author')
+      requester
+        .post(`/api/lists/${id}/items`)
+        .send(addItemData)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 400 if item quantity is missing', (done) => {
+      const id = '5b5c39c618774c33b4b0a010'
+      const addItemData = {name: 'Item', author: '5b5c39c618774c33b4b0a011'}
+      const expectedError = errors.missingRequiredField('quantity')
+      requester
+        .post(`/api/lists/${id}/items`)
+        .send(addItemData)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 400 if item quantity is not a number', (done) => {
+      const id = '5b5c39c618774c33b4b0a010'
+      const addItemData = {name: 'Item', author: '5b5c39c618774c33b4b0a011', quantity: 'I am not a number!'}
+      const expectedError = errors.badQuantity(addItemData.quantity)
+      requester
+        .post(`/api/lists/${id}/items`)
+        .send(addItemData)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 400 if item quantity is a floating number', (done) => {
+      const id = '5b5c39c618774c33b4b0a010'
+      const addItemData = {name: 'Item', author: '5b5c39c618774c33b4b0a011', quantity: 3.14}
+      const expectedError = errors.badQuantity(addItemData.quantity)
+      requester
+        .post(`/api/lists/${id}/items`)
+        .send(addItemData)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 400 if item quantity is greater than 99', (done) => {
+      const id = '5b5c39c618774c33b4b0a010'
+      const addItemData = {name: 'Item', author: '5b5c39c618774c33b4b0a011', quantity: 20098}
+      const expectedError = errors.badQuantity(addItemData.quantity)
+      requester
+        .post(`/api/lists/${id}/items`)
+        .send(addItemData)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 400 if item quantity is lesser than 1', (done) => {
+      const id = '5b5c39c618774c33b4b0a010'
+      const addItemData = {name: 'Item', author: '5b5c39c618774c33b4b0a011', quantity: -5}
+      const expectedError = errors.badQuantity(addItemData.quantity)
+      requester
+        .post(`/api/lists/${id}/items`)
+        .send(addItemData)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 404 if list does not exist in database', (done) => {
+      const id = '5b5c39c618774c33b4b0a010'
+      const addItemData = {name: 'Item', author: '5b5c39c618774c33b4b0a011', quantity: 5}
+      const expectedError = errors.ressourceNotFound({ type: 'list', id })
+      List.findById.yields(null, null)
+      requester
+        .post(`/api/lists/${id}/items`)
+        .send(addItemData)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 404 if user does not exist in database', (done) => {
+      const id = '5b5c39c618774c33b4b0a010'
+      const addItemData = {name: 'Item', author: '5b5c39c618774c33b4b0a011', quantity: 5}
+      const list = {}
+      const expectedError = errors.ressourceNotFound({ type: 'user', id: addItemData.author })
+      List.findById.yields(null, list)
+      User.findById.yields(null, null)
+      requester
+        .post(`/api/lists/${id}/items`)
+        .send(addItemData)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 401 if user is not an attendee of the list', (done) => {
+      const id = '5b5c39c618774c33b4b0a010'
+      const data = {name: 'Item', author: '5b5c39c618774c33b4b0a011', quantity: 5}
+      const list = {name: 'Awesome List', owner: '5b5c39c618774c33b4b0a012', attendees: ['5b5c39c618774c33b4b0a012', '5b5c39c618774c33b4b0a013'], items: []}
+      const user = {_id: data.author, name: 'John Doe', email: 'john@doe.com'}
+      const expectedError = errors.notAuthorized(user._id, 'add item')
+      List.findById.yields(null, list)
+      User.findById.yields(null, user)
+      requester
+        .post(`/api/lists/${id}/items`)
+        .send(data)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 500 if find list by id fails', (done) => {
+      const id = '5b5c39c618774c33b4b0a010'
+      const data = {name: 'Item', author: '5b5c39c618774c33b4b0a011', quantity: 5}
+      const errorDB = {type: 'DB', msg: 'Mocked DB failure'}
+      const expectedError = errors.databaseAccess(errorDB)
+      List.findById.yields(errorDB, null)
+      requester
+        .post(`/api/lists/${id}/items`)
+        .send(data)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          spy.calledOnce.should.be.eql(false)
+          done()
+        })
+    })
+    it('should return 500 if find user by id fails', (done) => {
+      const id = '5b5c39c618774c33b4b0a010'
+      const data = {name: 'Item', author: '5b5c39c618774c33b4b0a011', quantity: 5}
+      const list = new List({_id: '5b5c39c618774c33b4b0a018', name: 'Awesome List', owner: '5b5c39c618774c33b4b0a012', attendees: ['5b5c39c618774c33b4b0a012', '5b5c39c618774c33b4b0a011'], items: []})
+      const errorDB = {type: 'DB', msg: 'Mocked DB failure'}
+      const expectedError = errors.databaseAccess(errorDB)
+      List.findById.yields(null, list)
+      User.findById.yields(errorDB, null)
+      requester
+        .post(`/api/lists/${id}/items`)
+        .send(data)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          spy.calledOnce.should.be.eql(false)
+          done()
+        })
+    })
+    it('should return 500 if save item fails', (done) => {
+      const id = '5b5c39c618774c33b4b0a010'
+      const data = {name: 'Item', author: '5b5c39c618774c33b4b0a011', quantity: 5}
+      const list = new List({_id: '5b5c39c618774c33b4b0a018', name: 'Awesome List', owner: '5b5c39c618774c33b4b0a012', attendees: ['5b5c39c618774c33b4b0a012', '5b5c39c618774c33b4b0a011'], items: []})
+      const user = {_id: data.author, name: 'John Doe', email: 'john@doe.com'}
+      const errorDB = {type: 'DB', msg: 'Mocked DB failure'}
+      const expectedError = errors.databaseAccess(errorDB)
+      List.findById.yields(null, list)
+      User.findById.yields(null, user)
+      ListItem.prototype.save.yields(errorDB, null)
+      requester
+        .post(`/api/lists/${id}/items`)
+        .send(data)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          spy.calledOnce.should.be.eql(false)
+          done()
+        })
+    })
+    it('should return 500 if save list fails', (done) => {
+      const id = '5b5c39c618774c33b4b0a010'
+      const data = {name: 'Item', author: '5b5c39c618774c33b4b0a011', quantity: 5}
+      const list = new List({_id: '5b5c39c618774c33b4b0a018', name: 'Awesome List', owner: '5b5c39c618774c33b4b0a012', attendees: ['5b5c39c618774c33b4b0a012', '5b5c39c618774c33b4b0a011'], items: []})
+      const user = {_id: data.author, name: 'John Doe', email: 'john@doe.com'}
+      const item = {_id: '5b5c39c618774c33b4b0a054', name: data.name, quantity: data.quantity, responsible: []}
+      const errorDB = {type: 'DB', msg: 'Mocked DB failure'}
+      const expectedError = errors.databaseAccess(errorDB)
+      List.findById.yields(null, list)
+      User.findById.yields(null, user)
+      ListItem.prototype.save.yields(null, item)
+      List.prototype.save.yields(errorDB, null)
+      requester
+        .post(`/api/lists/${id}/items`)
+        .send(data)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          spy.calledOnce.should.be.eql(false)
+          done()
+        })
+    })
+    it('should return 200 if request parameters are correct and database operations succeed', (done) => {
+      const id = '5b5c39c618774c33b4b0a010'
+      const data = {name: 'Item', author: '5b5c39c618774c33b4b0a011', quantity: 5}
+      const list = new List({_id: '5b5c39c618774c33b4b0a018', name: 'Awesome List', owner: '5b5c39c618774c33b4b0a012', attendees: ['5b5c39c618774c33b4b0a012', '5b5c39c618774c33b4b0a011'], items: []})
+      const user = {_id: data.author, name: 'John Doe', email: 'john@doe.com'}
+      const item = {_id: '5b5c39c618774c33b4b0a054', name: data.name, quantity: data.quantity, responsible: []}
+      List.findById.yields(null, list)
+      User.findById.yields(null, user)
+      ListItem.prototype.save.yields(null, item)
+      List.prototype.save.yields(null, list)
+      requester
+        .post(`/api/lists/${id}/items`)
+        .send(data)
+        .end((err, res) => {
+          res.should.have.status(200)
+          res.body.should.be.eql(item)
+          spy.calledOnce.should.be.eql(true)
+          spy.calledWith(list._id, item).should.be.eql(true)
+          done()
+        })
+    })
+  })
+  describe('DELETE /api/lists/:listId/items/:itemId', () => {
+    let requester
+    let spy
+    beforeEach(() => {
+      requester = chai.request(server.app).keepOpen()
+      sinon.stub(User, 'findById')
+      sinon.stub(List, 'findById')
+      sinon.stub(ListItem, 'findById')
+      sinon.stub(ListItem, 'findByIdAndRemove')
+      sinon.stub(List.prototype, 'update')
+      spy = sinon.spy(SocketsUtils, 'itemRemoved')
+    })
+    afterEach(() => {
+      User.findById.restore()
+      List.findById.restore()
+      ListItem.findById.restore()
+      ListItem.findByIdAndRemove.restore()
+      List.prototype.update.restore()
+      SocketsUtils.itemRemoved.restore()
+      requester.close()
+    })
+    it('should return 400 if list ID is null', (done) => {
+      const listId = null
+      const itemId = '5b5c39c618774c33b4b0a010'
+      const expectedError = errors.noId('list')
+      requester
+        .delete(`/api/lists/${listId}/items/${itemId}`)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 400 if list ID is undefined', (done) => {
+      const listId = undefined
+      const itemId = '5b5c39c618774c33b4b0a010'
+      const expectedError = errors.noId('list')
+      requester
+        .delete(`/api/lists/${listId}/items/${itemId}`)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 400 if item ID is null', (done) => {
+      const itemId = null
+      const listId = '5b5c39c618774c33b4b0a010'
+      const expectedError = errors.noId('item')
+      requester
+        .delete(`/api/lists/${listId}/items/${itemId}`)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 400 if item ID is undefined', (done) => {
+      const itemId = undefined
+      const listId = '5b5c39c618774c33b4b0a010'
+      const expectedError = errors.noId('item')
+      requester
+        .delete(`/api/lists/${listId}/items/${itemId}`)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 400 if user ID is undefined', (done) => {
+      const itemId = '5b5c39c618774c33b4b0a011'
+      const listId = '5b5c39c618774c33b4b0a010'
+      const expectedError = errors.noId('user')
+      requester
+        .delete(`/api/lists/${listId}/items/${itemId}`)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 400 if user ID is an empty string', (done) => {
+      const itemId = '5b5c39c618774c33b4b0a011'
+      const listId = '5b5c39c618774c33b4b0a010'
+      const userId = ''
+      const expectedError = errors.noId('user')
+      requester
+        .delete(`/api/lists/${listId}/items/${itemId}?userId=${userId}`)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 400 if user ID is null', (done) => {
+      const itemId = '5b5c39c618774c33b4b0a011'
+      const listId = '5b5c39c618774c33b4b0a010'
+      const userId = null
+      const expectedError = errors.noId('user')
+      requester
+        .delete(`/api/lists/${listId}/items/${itemId}?userId=${userId}`)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 404 if list does not exists', (done) => {
+      const itemId = '5b5c39c618774c33b4b0a011'
+      const listId = '5b5c39c618774c33b4b0a010'
+      const userId = '5b5c39c618774c33b4b0a012'
+      const expectedError = errors.ressourceNotFound({ type: 'list', id: listId })
+      List.findById.yields(null, null)
+      requester
+        .delete(`/api/lists/${listId}/items/${itemId}?userId=${userId}`)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 404 if item does not exists', (done) => {
+      const itemId = '5b5c39c618774c33b4b0a011'
+      const listId = '5b5c39c618774c33b4b0a010'
+      const userId = '5b5c39c618774c33b4b0a012'
+      const list = {}
+      const expectedError = errors.ressourceNotFound({ type: 'item', id: itemId })
+      List.findById.yields(null, list)
+      ListItem.findById.yields(null, null)
+      requester
+        .delete(`/api/lists/${listId}/items/${itemId}?userId=${userId}`)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 404 if user does not exists', (done) => {
+      const itemId = '5b5c39c618774c33b4b0a011'
+      const listId = '5b5c39c618774c33b4b0a010'
+      const userId = '5b5c39c618774c33b4b0a012'
+      const list = {}
+      const item = {}
+      const expectedError = errors.ressourceNotFound({ type: 'user', id: userId })
+      List.findById.yields(null, list)
+      ListItem.findById.yields(null, item)
+      User.findById.yields(null, null)
+      requester
+        .delete(`/api/lists/${listId}/items/${itemId}?userId=${userId}`)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 401 if user does not attend the list', (done) => {
+      const itemId = '5b5c39c618774c33b4b0a011'
+      const listId = '5b5c39c618774c33b4b0a010'
+      const userId = '5b5c39c618774c33b4b0a045'
+      const list = new List({_id: listId, name: 'Awesome List', owner: '5b5c39c618774c33b4b0a012', attendees: ['5b5c39c618774c33b4b0a012', '5b5c39c618774c33b4b0a011'], items: []})
+      const user = {_id: userId, name: 'John Doe', email: 'john@doe.com'}
+      const item = new ListItem({_id: itemId, name: 'Shuriken', quantity: '32', responsible: []})
+      const expectedError = errors.notAuthorized(userId , 'delete item')
+      List.findById.yields(null, list)
+      ListItem.findById.yields(null, item)
+      User.findById.yields(null, user)
+      requester
+        .delete(`/api/lists/${listId}/items/${itemId}?userId=${userId}`)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 400 if item is not in list', (done) => {
+      const itemId = '5b5c39c618774c33b4b0a011'
+      const listId = '5b5c39c618774c33b4b0a010'
+      const userId = '5b5c39c618774c33b4b0a045'
+      const list = new List({_id: listId, name: 'Awesome List', owner: '5b5c39c618774c33b4b0a012', attendees: ['5b5c39c618774c33b4b0a012', userId], items: []})
+      const user = {_id: userId, name: 'John Doe', email: 'john@doe.com'}
+      const item = new ListItem({_id: itemId, name: 'Shuriken', quantity: '32', responsible: []})
+      const expectedError = errors.itemNotInList(listId , itemId)
+      List.findById.yields(null, list)
+      ListItem.findById.yields(null, item)
+      User.findById.yields(null, user)
+      requester
+        .delete(`/api/lists/${listId}/items/${itemId}?userId=${userId}`)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 500 if find list by id fails', (done) => {
+      const itemId = '5b5c39c618774c33b4b0a011'
+      const listId = '5b5c39c618774c33b4b0a010'
+      const userId = '5b5c39c618774c33b4b0a045'
+      const errorDB = {type: 'DB', msg: 'Mocked DB failure'}
+      const expectedError = errors.databaseAccess(errorDB)
+      List.findById.yields(errorDB, null)
+      requester
+        .delete(`/api/lists/${listId}/items/${itemId}?userId=${userId}`)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          spy.calledOnce.should.be.eql(false)
+          done()
+        })
+    })
+    it('should return 500 if find user by id fails', (done) => {
+      const itemId = '5b5c39c618774c33b4b0a011'
+      const listId = '5b5c39c618774c33b4b0a010'
+      const userId = '5b5c39c618774c33b4b0a045'
+      const list = new List({_id: listId, name: 'Awesome List', owner: '5b5c39c618774c33b4b0a012', attendees: ['5b5c39c618774c33b4b0a012', userId], items: [itemId]})
+      const item = new ListItem({_id: itemId, name: 'Shuriken', quantity: '32', responsible: []})
+      const errorDB = {type: 'DB', msg: 'Mocked DB failure'}
+      const expectedError = errors.databaseAccess(errorDB)
+      List.findById.yields(null, list)
+      ListItem.findById.yields(null, item)
+      User.findById.yields(errorDB, null)
+      requester
+        .delete(`/api/lists/${listId}/items/${itemId}?userId=${userId}`)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          spy.calledOnce.should.be.eql(false)
+          done()
+        })
+    })
+    it('should return 500 if find item by id fails', (done) => {
+      const itemId = '5b5c39c618774c33b4b0a011'
+      const listId = '5b5c39c618774c33b4b0a010'
+      const userId = '5b5c39c618774c33b4b0a045'
+      const list = new List({_id: listId, name: 'Awesome List', owner: '5b5c39c618774c33b4b0a012', attendees: ['5b5c39c618774c33b4b0a012', userId], items: [itemId]})
+      const errorDB = {type: 'DB', msg: 'Mocked DB failure'}
+      const expectedError = errors.databaseAccess(errorDB)
+      List.findById.yields(null, list)
+      ListItem.findById.yields(errorDB, null)
+      requester
+        .delete(`/api/lists/${listId}/items/${itemId}?userId=${userId}`)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          spy.calledOnce.should.be.eql(false)
+          done()
+        })
+    })
+    it('should return 500 if delete item by id fails', (done) => {
+      const itemId = '5b5c39c618774c33b4b0a011'
+      const listId = '5b5c39c618774c33b4b0a010'
+      const userId = '5b5c39c618774c33b4b0a045'
+      const list = new List({_id: listId, name: 'Awesome List', owner: '5b5c39c618774c33b4b0a012', attendees: ['5b5c39c618774c33b4b0a012', userId], items: [itemId]})
+      const user = {_id: userId, name: 'John Doe', email: 'john@doe.com'}
+      const item = new ListItem({_id: itemId, name: 'Shuriken', quantity: '32', responsible: []})
+      const errorDB = {type: 'DB', msg: 'Mocked DB failure'}
+      const expectedError = errors.databaseAccess(errorDB)
+      List.findById.yields(null, list)
+      ListItem.findById.yields(null, item)
+      User.findById.yields(null, user)
+      List.prototype.update.yields(null, null)
+      ListItem.findByIdAndRemove.yields(errorDB, null)
+      requester
+        .delete(`/api/lists/${listId}/items/${itemId}?userId=${userId}`)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          spy.calledOnce.should.be.eql(false)
+          done()
+        })
+    })
+    it('should return 500 if save list fails', (done) => {
+      const itemId = '5b5c39c618774c33b4b0a011'
+      const listId = '5b5c39c618774c33b4b0a010'
+      const userId = '5b5c39c618774c33b4b0a045'
+      const list = new List({_id: listId, name: 'Awesome List', owner: '5b5c39c618774c33b4b0a012', attendees: ['5b5c39c618774c33b4b0a012', userId], items: [itemId]})
+      const user = {_id: userId, name: 'John Doe', email: 'john@doe.com'}
+      const item = new ListItem({_id: itemId, name: 'Shuriken', quantity: '32', responsible: []})
+      const errorDB = {type: 'DB', msg: 'Mocked DB failure'}
+      const expectedError = errors.databaseAccess(errorDB)
+      List.findById.yields(null, list)
+      ListItem.findById.yields(null, item)
+      User.findById.yields(null, user)
+      List.prototype.update.yields(errorDB, null)
+      requester
+        .delete(`/api/lists/${listId}/items/${itemId}?userId=${userId}`)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          spy.calledOnce.should.be.eql(false)
+          done()
+        })
+    })
+    it('should return 200 if everything is OK', (done) => {
+      const itemId = '5b5c39c618774c33b4b0a011'
+      const listId = '5b5c39c618774c33b4b0a010'
+      const userId = '5b5c39c618774c33b4b0a045'
+      const list = new List({_id: listId, name: 'Awesome List', owner: '5b5c39c618774c33b4b0a012', attendees: ['5b5c39c618774c33b4b0a012', userId], items: [itemId]})
+      const user = {_id: userId, name: 'John Doe', email: 'john@doe.com'}
+      const item = new ListItem({_id: itemId, name: 'Shuriken', quantity: '32', responsible: []})
+      const expectedResult = { id: itemId }
+      List.findById.yields(null, list)
+      ListItem.findById.yields(null, item)
+      User.findById.yields(null, user)
+      ListItem.findByIdAndRemove.yields(null, item)
+      List.prototype.update.yields(null, null)
+      requester
+        .delete(`/api/lists/${listId}/items/${itemId}?userId=${userId}`)
+        .end((err, res) => {
+          res.should.have.status(200)
+          res.body.should.be.eql(expectedResult)
+          spy.calledOnce.should.be.eql(true)
+          spy.calledWith(listId, itemId).should.be.eql(true)
+          done()
+        })
+    })
+  })
 })
+/* eslint-enable */

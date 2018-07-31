@@ -40,8 +40,8 @@ ItemsController.save = async (item, build = false) => {
 ItemsController.delete = async (itemId) => {
   return new Promise((resolve, reject) => {
     ListItem.findByIdAndRemove(itemId, (err, item) => {
-      if (err) reject(errors.databaseAccess(err))
-      else resolve(item)
+      if (err) return reject(errors.databaseAccess(err))
+      return resolve(item)
     })
   })
 }

@@ -21,13 +21,11 @@ module.exports = (SocketsUtils) => {
 
   const checkQuantity = (qty) => {
     const quantity = Number(qty)
-    if (quantity.isNaN || quantity <= 0) return errors.badQuantity(quantity)
+    if (Number.isNaN(quantity) || !Number.isInteger(quantity) || quantity <= 0 || quantity > 99) return errors.badQuantity(quantity)
     return null
   }
 
   const checkAuthorized = (list, userId, action) => {
-    console.log(userId)
-    console.log(list.attendees)
     if (list.attendees.indexOf(userId) < 0) return errors.notAuthorized(userId, action)
     return null
   }
@@ -216,28 +214,34 @@ module.exports = (SocketsUtils) => {
   }
 
   ListsController.addItem = async (req, res) => {
-    let err = checkId(req.params.id, 'list_id')
+    let err = checkId(uncastFalsyRequestParamter(req.params.id), 'list_id')
     if (!err) err = checkRequired('name', req.body.name)
     if (!err) err = checkRequired('author', req.body.author)
+    if (!err) err = checkRequired('quantity', req.body.quantity)
     if (!err) err = checkQuantity(req.body.quantity)
     if (err) return res.status(err.status).send(err)
 
-    const list = await ListsController.findById(req.params.id).catch((err) => res.status(err.status).send(err))
-    const author = await UsersController.findById(req.body.author).catch((err) => res.status(err.status).send(err))
+    addItem(req.params.id, req.body.author, req.body.quantity, req.body.name).then((data) => {
+      SocketsUtils.itemAdded(data.list._id, ItemsController.itemBuilder(data.item))
+      return res.status(200).send(data.item)
+    }, (err) => { return res.status(err.status).send(err) })
+  }
 
-    err = checkAuthorized(res, list, author._id, 'add item')
-    if (err) return res.status(err.status).send(err)
+  const addItem = async (listId, authorId, quantity, name) => {
+    const list = await ListsController.findById(listId).catch((err) => Promise.reject(err))
+    const author = await UsersController.findById(authorId).catch((err) => Promise.reject(err))
+
+    const err = checkAuthorized(list, author._id, 'add item')
+    if (err) return Promise.reject(err)
 
     let item = new ListItem()
-    item.quantity = req.body.quantity
-    item.name = req.body.name
+    item.quantity = quantity
+    item.name = name
     item.author = author
     item.responsible = []
 
-    item = await ItemsController.save(item).catch(err => res.status(err.status).send(err))
-    await addItemToList(list, item).catch(err => res.status(err.status).send(err))
-
-    SocketsUtils.itemAdded(list._id, ItemsController.itemBuilder(item))
+    item = await ItemsController.save(item).catch((err) => Promise.reject(err))
+    return addItemToList(list, item).catch((err) => Promise.reject(err))
   }
 
   const addItemToList = async (list, item) => {
@@ -245,7 +249,7 @@ module.exports = (SocketsUtils) => {
       list.items.push(item)
       list.save((err, list) => {
         if (err) reject(errors.databaseAccess(err))
-        else resolve(list)
+        else resolve({list, item})
       })
     })
   }
@@ -283,27 +287,37 @@ module.exports = (SocketsUtils) => {
     res.status(200).json(savedItem)
   }
 
-  ListsController.removeItem = async (req, res) => {
-    let err = checkId(req.query.userId, 'user')
-    if (err) return res.send(err.status).send(err)
-    const list = await ListsController.findById(req.params.listId).catch(err => res.send(err.status).send(err))
-    const item = await ItemsController.findById(req.params.itemId).catch(err => res.send(err.status).send(err))
-    const user = await UsersController.findById(req.body.userId).catch(err => res.status(err.status).send(err))
-    err = checkAuthorized(list, user._id, 'bring/clear item')
-    if (!err) err = checkItemInList(list, item._id)
-    if (err) return res.send(err.status).send(err)
-    const updatedList = await removeItemFromList(list, item._id).catch(err => res.status(err.status).send(err))
-    const deletedItem = await ItemsController.delete(item._id).catch(err => res.status(err.status).send(err))
-    SocketsUtils.itemRemoved(updatedList._id, deletedItem._id)
-    return res.status(200).send({ id: deletedItem._id })
+  ListsController.removeItem = (req, res) => {
+    const listId = req.params.listId
+    const itemId = req.params.itemId
+    const userId = req.query.userId
+    let err = checkId(uncastFalsyRequestParamter(listId), 'list')
+    if (!err) err = checkId(uncastFalsyRequestParamter(itemId), 'item')
+    if (!err) err = checkId(uncastFalsyRequestParamter(userId), 'user')
+    if (err) return res.status(err.status).send(err)
+    deleteItem(listId, itemId, userId).then((deletedItem) => {
+      SocketsUtils.itemRemoved(listId, deletedItem._id)
+      return res.status(200).send({ id: deletedItem._id })
+    }, (err) => { return res.status(err.status).send(err) })
   }
 
-  const removeItemFromList = (list, itemId) => {
+  const deleteItem = async (listId, itemId, userId) => {
+    const list = await ListsController.findById(listId).catch(err => Promise.reject(err))
+    const item = await ItemsController.findById(itemId).catch(err => Promise.reject(err))
+    const user = await UsersController.findById(userId).catch(err => Promise.reject(err))
+    let err = checkAuthorized(list, user._id, 'delete item')
+    if (!err) err = checkItemInList(list, item._id)
+    if (err) return Promise.reject(err)
+    await removeItemFromList(list, item).catch(err => Promise.reject(err))
+    const deletedItem = await ItemsController.delete(item._id).catch(err => Promise.reject(err))
+    return deletedItem
+  }
+
+  const removeItemFromList = (list, item) => {
     return new Promise((resolve, reject) => {
-      _.pull(list.items, itemId)
-      list.save((err, list) => {
-        if (err) reject(errors.databaseAccess(err))
-        else resolve(list)
+      list.update({$pull: { items: item._id }}, (err, list) => {
+        if (err) return reject(errors.databaseAccess(err))
+        return resolve(list)
       })
     })
   }

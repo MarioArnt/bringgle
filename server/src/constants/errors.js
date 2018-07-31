@@ -39,13 +39,16 @@ errors.noId = (type) => {
 }
 
 errors.badQuantity = (qty) => {
+  const quantity = Number(qty)
   const error = {
     code: errors.code.BAD_QUANTITY,
     status: 400,
     msg: 'Invalid quantity'
   }
-  if (qty.isNaN) error.details = {details: 'Quantity is not a number'}
-  else if (qty <= 0) error.details = {details: 'Quantity is lower or equal to zero'}
+  if (Number.isNaN(quantity)) error.details = {details: 'Quantity is not a number'}
+  else if (!Number.isInteger(quantity)) errors.details = {details: 'Quantity is not an integer'}
+  else if (quantity <= 0) error.details = {details: 'Quantity is lower or equal to zero'}
+  else if (quantity > 99) error.details = {details: 'Quantity must be lesser than 99'}
   return error
 }
 
