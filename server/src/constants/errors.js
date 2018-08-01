@@ -8,7 +8,10 @@ errors.code = {
   MISSING_REQUIRED_FIELD: 'E05',
   NOT_AUTHORIZED: 'E06',
   ITEM_NOT_IN_LIST: 'E07',
-  USER_ALREADY_IN_LIST: 'E08'
+  USER_ALREADY_IN_LIST: 'E08',
+  INVALID_ACTION: 'E09',
+  ITEM_ALREADY_BROUGHT: 'E10',
+  ITEM_ALREADY_CLEARED: 'E11'
 }
 
 errors.databaseAccess = (details) => {
@@ -85,6 +88,33 @@ errors.userAlreadyInList = (listId, userId) => {
     status: 400,
     msg: 'User already attend this list',
     details: {listId, userId}
+  }
+}
+
+errors.invalidAction = (action) => {
+  return {
+    code: errors.code.INVALID_ACTION,
+    status: 400,
+    msg: 'Invalid action',
+    details: action
+  }
+}
+
+errors.itemAlreadyBrought = (id) => {
+  return {
+    code: errors.code.ITEM_ALREADY_BROUGHT,
+    status: 400,
+    msg: 'Item Already Brought',
+    details: {itemId: id}
+  }
+}
+
+errors.itemAlreadyCleared = (id) => {
+  return {
+    code: errors.code.ITEM_ALREADY_CLEARED,
+    status: 400,
+    msg: 'Item Already Cleared',
+    details: {itemId: id}
   }
 }
 

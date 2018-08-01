@@ -8,6 +8,7 @@ const should = chai.should()
 const assert = chai.assert
 const server = require('../../src/index')
 const errors = require('../../src/constants/errors')
+const actions = require('../../src/constants/actions')
 const List = require('../../src/models/list')
 const User = require('../../src/models/user')
 const ListItem = require('../../src/models/item')
@@ -910,7 +911,495 @@ describe('List Controller', () => {
         })
     })
   })
-  describe.skip('PATCH /api/lists/:id/items/:itemId')
+  describe('PATCH /api/lists/:id/items/:itemId', () => {
+    let requester
+    let spy
+    beforeEach(() => {
+      requester = chai.request(server.app).keepOpen()
+      sinon.stub(User, 'findById')
+      sinon.stub(List, 'findById')
+      sinon.stub(ListItem, 'findById')
+      sinon.stub(ListItem.prototype, 'save')
+      sinon.stub(ListItem.prototype, 'populate')
+      spy = sinon.spy(SocketsUtils, 'itemUpdated')
+    })
+    afterEach(() => {
+      ListItem.findById.restore()
+      User.findById.restore()
+      List.findById.restore()
+      ListItem.prototype.save.restore()
+      ListItem.prototype.populate.restore()
+      SocketsUtils.itemUpdated.restore()
+      requester.close()
+    })
+    it('should return 400 if list ID undefined or null', (done) => {
+      const listId = null
+      const itemId = '5b60900a2c176a2d8cf2d665'
+      const expectedError = errors.noId('list')
+      requester
+        .patch(`/api/lists/${listId}/items/${itemId}`)
+        .send({})
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 400 if item ID undefined or null', (done) => {
+      const itemId = null
+      const listId = '5b60900a2c176a2d8cf2d665'
+      const expectedError = errors.noId('item')
+      requester
+        .patch(`/api/lists/${listId}/items/${itemId}`)
+        .send({})
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 400 if user ID undefined, null or an empty string', (done) => {
+      const itemId = '5b60900a2c176a2d8cf2d666'
+      const listId = '5b60900a2c176a2d8cf2d665'
+      const expectedError = errors.noId('user')
+      requester
+        .patch(`/api/lists/${listId}/items/${itemId}`)
+        .send({})
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 400 if action is undefined, null or an empty string', (done) => {
+      const itemId = '5b60900a2c176a2d8cf2d666'
+      const listId = '5b60900a2c176a2d8cf2d665'
+      const data = { userId: '5b60900a2c176a2d8cf2d667' }
+      const expectedError = errors.missingRequiredField('action')
+      requester
+        .patch(`/api/lists/${listId}/items/${itemId}`)
+        .send(data)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 401 if user does not attend the list', (done) => {
+      const itemId = '5b60900a2c176a2d8cf2d666'
+      const listId = '5b60900a2c176a2d8cf2d665'
+      const data = { userId: '5b60900a2c176a2d8cf2d667', action: 'Whatever' }
+      const list = new List({
+        _id: listId,
+        title: 'Some List',
+        owner: '5b60900a2c176a2d8cf2d698',
+        attendees: ['5b60900a2c176a2d8cf2d698'],
+        items: [itemId]})
+      const user = new User({_id: data.userId, name: 'Joe', email: 'joe@dalton.brothers'})
+      const item = new ListItem({_id: itemId, name: 'Revolver', quantity: 4, responsible: {}})
+      List.findById.yields(null, list)
+      ListItem.findById.yields(null, item)
+      User.findById.yields(null, user)
+      const expectedError = errors.notAuthorized(data.userId, 'update item')
+      requester
+        .patch(`/api/lists/${listId}/items/${itemId}`)
+        .send(data)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 400 if item is not in list', (done) => {
+      const itemId = '5b60900a2c176a2d8cf2d666'
+      const listId = '5b60900a2c176a2d8cf2d665'
+      const data = { userId: '5b60900a2c176a2d8cf2d667', action: 'Whatever' }
+      const list = new List({
+        _id: listId,
+        title: 'Some List',
+        owner: data.userId,
+        attendees: [data.userId],
+        items: ['5b60900a2c176a2d8cf2d675', '5b60900a2c176a2d8cf2d609']})
+      const user = new User({_id: data.userId, name: 'Joe', email: 'joe@dalton.brothers'})
+      const item = new ListItem({_id: itemId, name: 'Revolver', quantity: 4, responsible: {}})
+      List.findById.yields(null, list)
+      ListItem.findById.yields(null, item)
+      User.findById.yields(null, user)
+      const expectedError = errors.itemNotInList(listId, itemId)
+      requester
+        .patch(`/api/lists/${listId}/items/${itemId}`)
+        .send(data)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 404 if user is not found', (done) => {
+      const itemId = '5b60900a2c176a2d8cf2d666'
+      const listId = '5b60900a2c176a2d8cf2d665'
+      const data = { userId: '5b60900a2c176a2d8cf2d667', action: 'Whatever' }
+      const list = new List({
+        _id: listId,
+        title: 'Some List',
+        owner: data.userId,
+        attendees: [data.userId],
+        items: ['5b60900a2c176a2d8cf2d675', '5b60900a2c176a2d8cf2d609']})
+      const item = new ListItem({_id: itemId, name: 'Revolver', quantity: 4, responsible: {}})
+      List.findById.yields(null, list)
+      ListItem.findById.yields(null, item)
+      User.findById.yields(null, null)
+      const expectedError = errors.ressourceNotFound({ type: 'user', id: data.userId })
+      requester
+        .patch(`/api/lists/${listId}/items/${itemId}`)
+        .send(data)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 404 if item is not found', (done) => {
+      const itemId = '5b60900a2c176a2d8cf2d666'
+      const listId = '5b60900a2c176a2d8cf2d665'
+      const data = { userId: '5b60900a2c176a2d8cf2d667', action: 'Whatever' }
+      const list = new List({
+        _id: listId,
+        title: 'Some List',
+        owner: data.userId,
+        attendees: [data.userId],
+        items: ['5b60900a2c176a2d8cf2d675', '5b60900a2c176a2d8cf2d609']})
+      List.findById.yields(null, list)
+      ListItem.findById.yields(null, null)
+      const expectedError = errors.ressourceNotFound({ type: 'item', id: itemId })
+      requester
+        .patch(`/api/lists/${listId}/items/${itemId}`)
+        .send(data)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 404 if list is not found', (done) => {
+      const itemId = '5b60900a2c176a2d8cf2d666'
+      const listId = '5b60900a2c176a2d8cf2d665'
+      const data = { userId: '5b60900a2c176a2d8cf2d667', action: 'Whatever' }
+      List.findById.yields(null, null)
+      const expectedError = errors.ressourceNotFound({ type: 'list', id: listId })
+      requester
+        .patch(`/api/lists/${listId}/items/${itemId}`)
+        .send(data)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 500 if find user by id fails', (done) => {
+      const itemId = '5b60900a2c176a2d8cf2d666'
+      const listId = '5b60900a2c176a2d8cf2d665'
+      const data = { userId: '5b60900a2c176a2d8cf2d667', action: 'Whatever' }
+      const list = new List({
+        _id: listId,
+        title: 'Some List',
+        owner: data.userId,
+        attendees: [data.userId],
+        items: ['5b60900a2c176a2d8cf2d675', '5b60900a2c176a2d8cf2d609']})
+      const item = new ListItem({_id: itemId, name: 'Revolver', quantity: 4, responsible: {}})
+      const errorDB = { type: 'DB', msg: 'Mocked DB failure' }
+      List.findById.yields(null, list)
+      ListItem.findById.yields(null, item)
+      User.findById.yields(errorDB, null)
+      const expectedError = errors.databaseAccess(errorDB)
+      requester
+        .patch(`/api/lists/${listId}/items/${itemId}`)
+        .send(data)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 500 if find item by id fails', (done) => {
+      const itemId = '5b60900a2c176a2d8cf2d666'
+      const listId = '5b60900a2c176a2d8cf2d665'
+      const data = { userId: '5b60900a2c176a2d8cf2d667', action: 'Whatever' }
+      const list = new List({
+        _id: listId,
+        title: 'Some List',
+        owner: data.userId,
+        attendees: [data.userId],
+        items: ['5b60900a2c176a2d8cf2d675', '5b60900a2c176a2d8cf2d609']})
+      const errorDB = { type: 'DB', msg: 'Mocked DB failure' }
+      List.findById.yields(null, list)
+      ListItem.findById.yields(errorDB, null)
+      const expectedError = errors.databaseAccess(errorDB)
+      requester
+        .patch(`/api/lists/${listId}/items/${itemId}`)
+        .send(data)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 500 if find list by id fails', (done) => {
+      const itemId = '5b60900a2c176a2d8cf2d666'
+      const listId = '5b60900a2c176a2d8cf2d665'
+      const data = { userId: '5b60900a2c176a2d8cf2d667', action: 'Whatever' }
+      const errorDB = { type: 'DB', msg: 'Mocked DB failure' }
+      List.findById.yields(errorDB, null)
+      const expectedError = errors.databaseAccess(errorDB)
+      requester
+        .patch(`/api/lists/${listId}/items/${itemId}`)
+        .send(data)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 400 if action is invalid', (done) => {
+      const itemId = '5b60900a2c176a2d8cf2d666'
+      const listId = '5b60900a2c176a2d8cf2d665'
+      const data = { userId: '5b60900a2c176a2d8cf2d667', action: 'Whatever' }
+      const list = new List({
+        _id: listId,
+        title: 'Some List',
+        owner: data.userId,
+        attendees: [data.userId],
+        items: ['5b60900a2c176a2d8cf2d675', itemId]})
+      const user = new User({_id: data.userId, name: 'Joe', email: 'joe@dalton.brothers'})
+      const item = new ListItem({_id: itemId, name: 'Revolver', quantity: 4, responsible: {}})
+      List.findById.yields(null, list)
+      ListItem.findById.yields(null, item)
+      User.findById.yields(null, user)
+      const expectedError = errors.invalidAction(data.action)
+      requester
+        .patch(`/api/lists/${listId}/items/${itemId}`)
+        .send(data)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 400 if action is bring and sub-item not defined', (done) => {
+      const itemId = '5b60900a2c176a2d8cf2d666'
+      const listId = '5b60900a2c176a2d8cf2d665'
+      const data = { userId: '5b60900a2c176a2d8cf2d667', action: actions.BRING_ITEM.code }
+      const list = new List({
+        _id: listId,
+        title: 'Some List',
+        owner: data.userId,
+        attendees: [data.userId],
+        items: ['5b60900a2c176a2d8cf2d675', itemId]})
+      const user = new User({_id: data.userId, name: 'Joe', email: 'joe@dalton.brothers'})
+      const item = new ListItem({_id: itemId, name: 'Revolver', quantity: 4, responsible: {}})
+      List.findById.yields(null, list)
+      ListItem.findById.yields(null, item)
+      User.findById.yields(null, user)
+      const expectedError = errors.missingRequiredField('sub-item')
+      requester
+        .patch(`/api/lists/${listId}/items/${itemId}`)
+        .send(data)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 400 if action is bring and item already brought', (done) => {
+      const itemId = '5b60900a2c176a2d8cf2d666'
+      const listId = '5b60900a2c176a2d8cf2d665'
+      const data = { userId: '5b60900a2c176a2d8cf2d667', action: actions.BRING_ITEM.code, sub: 3 }
+      const list = new List({
+        _id: listId,
+        title: 'Some List',
+        owner: data.userId,
+        attendees: [data.userId],
+        items: ['5b60900a2c176a2d8cf2d675', itemId]})
+      const user = new User({_id: data.userId, name: 'Joe', email: 'joe@dalton.brothers'})
+      const item = new ListItem({_id: itemId, name: 'Revolver', quantity: 4, responsible: {'3': '5b60900a2c176a2d8cf2d677'}})
+      List.findById.yields(null, list)
+      ListItem.findById.yields(null, item)
+      User.findById.yields(null, user)
+      const expectedError = errors.itemAlreadyBrought(itemId)
+      requester
+        .patch(`/api/lists/${listId}/items/${itemId}`)
+        .send(data)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 500 if action is bring save item fails', (done) => {
+      const itemId = '5b60900a2c176a2d8cf2d666'
+      const listId = '5b60900a2c176a2d8cf2d665'
+      const data = { userId: '5b60900a2c176a2d8cf2d667', action: actions.BRING_ITEM.code, sub: 3 }
+      const list = new List({
+        _id: listId,
+        title: 'Some List',
+        owner: data.userId,
+        attendees: [data.userId],
+        items: ['5b60900a2c176a2d8cf2d675', itemId]})
+      const user = new User({_id: data.userId, name: 'Joe', email: 'joe@dalton.brothers'})
+      const item = new ListItem({_id: itemId, name: 'Revolver', quantity: 4, responsible: {'2': '5b60900a2c176a2d8cf2d677'}})
+      const errorDB = { type: 'DB', msg: 'Mocked DB failure' }
+      List.findById.yields(null, list)
+      ListItem.findById.yields(null, item)
+      User.findById.yields(null, user)
+      ListItem.prototype.save.yields(errorDB, null)
+      const expectedError = errors.databaseAccess(errorDB)
+      requester
+        .patch(`/api/lists/${listId}/items/${itemId}`)
+        .send(data)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 200 if action is bring and everything OK', (done) => {
+      const itemId = '5b60900a2c176a2d8cf2d666'
+      const listId = '5b60900a2c176a2d8cf2d665'
+      const data = { userId: '5b60900a2c176a2d8cf2d667', action: actions.BRING_ITEM.code, sub: 3 }
+      const list = new List({
+        _id: listId,
+        title: 'Some List',
+        owner: data.userId,
+        attendees: [data.userId],
+        items: ['5b60900a2c176a2d8cf2d675', itemId]})
+      const user = new User({_id: data.userId, name: 'Joe', email: 'joe@dalton.brothers'})
+      const item = new ListItem({_id: itemId, name: 'Revolver', quantity: 4, responsible: {'2': '5b60900a2c176a2d8cf2d677'}})
+      const savedItem = JSON.parse(JSON.stringify(item))
+      savedItem.responsible[data.sub] = user
+      List.findById.yields(null, list)
+      ListItem.findById.yields(null, item)
+      User.findById.yields(null, user)
+      ListItem.prototype.save.yields(null, savedItem)
+      ListItem.prototype.populate.yields(null)
+      requester
+        .patch(`/api/lists/${listId}/items/${itemId}`)
+        .send(data)
+        .end((err, res) => {
+          res.should.have.status(200)
+          res.body.should.be.eql(ItemsController.itemBuilder(savedItem))
+          spy.calledOnce.should.be.eql(true)
+          spy.calledWith(listId, ItemsController.itemBuilder(savedItem)).should.be.eql(true)
+          done()
+        })
+    })
+    it('should return 400 if action is clear and sub-item not defined', (done) => {
+      const itemId = '5b60900a2c176a2d8cf2d666'
+      const listId = '5b60900a2c176a2d8cf2d665'
+      const data = { userId: '5b60900a2c176a2d8cf2d667', action: actions.CLEAR_ITEM.code }
+      const list = new List({
+        _id: listId,
+        title: 'Some List',
+        owner: data.userId,
+        attendees: [data.userId],
+        items: ['5b60900a2c176a2d8cf2d675', itemId]})
+      const user = new User({_id: data.userId, name: 'Joe', email: 'joe@dalton.brothers'})
+      const item = new ListItem({_id: itemId, name: 'Revolver', quantity: 4, responsible: {}})
+      List.findById.yields(null, list)
+      ListItem.findById.yields(null, item)
+      User.findById.yields(null, user)
+      const expectedError = errors.missingRequiredField('sub-item')
+      requester
+        .patch(`/api/lists/${listId}/items/${itemId}`)
+        .send(data)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 400 if action is clear and item already cleared', (done) => {
+      const itemId = '5b60900a2c176a2d8cf2d666'
+      const listId = '5b60900a2c176a2d8cf2d665'
+      const data = { userId: '5b60900a2c176a2d8cf2d667', action: actions.CLEAR_ITEM.code, sub: 3 }
+      const list = new List({
+        _id: listId,
+        title: 'Some List',
+        owner: data.userId,
+        attendees: [data.userId],
+        items: ['5b60900a2c176a2d8cf2d675', itemId]})
+      const user = new User({_id: data.userId, name: 'Joe', email: 'joe@dalton.brothers'})
+      const item = new ListItem({_id: itemId, name: 'Revolver', quantity: 4, responsible: {'2': '5b60900a2c176a2d8cf2d677'}})
+      List.findById.yields(null, list)
+      ListItem.findById.yields(null, item)
+      User.findById.yields(null, user)
+      const expectedError = errors.itemAlreadyCleared(itemId)
+      requester
+        .patch(`/api/lists/${listId}/items/${itemId}`)
+        .send(data)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 500 if action is clear save item fails', (done) => {
+      const itemId = '5b60900a2c176a2d8cf2d666'
+      const listId = '5b60900a2c176a2d8cf2d665'
+      const data = { userId: '5b60900a2c176a2d8cf2d667', action: actions.BRING_ITEM.code, sub: 3 }
+      const list = new List({
+        _id: listId,
+        title: 'Some List',
+        owner: data.userId,
+        attendees: [data.userId],
+        items: ['5b60900a2c176a2d8cf2d675', itemId]})
+      const user = new User({_id: data.userId, name: 'Joe', email: 'joe@dalton.brothers'})
+      const item = new ListItem({_id: itemId, name: 'Revolver', quantity: 4, responsible: {'3': '5b60900a2c176a2d8cf2d677'}})
+      const errorDB = { type: 'DB', msg: 'Mocked DB failure' }
+      List.findById.yields(null, list)
+      ListItem.findById.yields(null, item)
+      User.findById.yields(null, user)
+      ListItem.prototype.save.yields(errorDB, null)
+      const expectedError = errors.databaseAccess(errorDB)
+      requester
+        .patch(`/api/lists/${listId}/items/${itemId}`)
+        .send(data)
+        .end((err, res) => {
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 200 if action is clear and everything OK', (done) => {
+      const itemId = '5b60900a2c176a2d8cf2d666'
+      const listId = '5b60900a2c176a2d8cf2d665'
+      const data = { userId: '5b60900a2c176a2d8cf2d667', action: actions.CLEAR_ITEM.code, sub: 3 }
+      const list = new List({
+        _id: listId,
+        title: 'Some List',
+        owner: data.userId,
+        attendees: [data.userId],
+        items: ['5b60900a2c176a2d8cf2d675', itemId]})
+      const user = new User({_id: data.userId, name: 'Joe', email: 'joe@dalton.brothers'})
+      const item = new ListItem({_id: itemId, name: 'Revolver', quantity: 4, responsible: {'3': '5b60900a2c176a2d8cf2d677'}})
+      const savedItem = JSON.parse(JSON.stringify(item))
+      savedItem.responsible[data.sub] = user
+      List.findById.yields(null, list)
+      ListItem.findById.yields(null, item)
+      User.findById.yields(null, user)
+      ListItem.prototype.save.yields(null, savedItem)
+      ListItem.prototype.populate.yields(null)
+      requester
+        .patch(`/api/lists/${listId}/items/${itemId}`)
+        .send(data)
+        .end((err, res) => {
+          res.should.have.status(200)
+          res.body.should.be.eql(ItemsController.itemBuilder(savedItem))
+          spy.calledOnce.should.be.eql(true)
+          spy.calledWith(listId, ItemsController.itemBuilder(savedItem)).should.be.eql(true)
+          done()
+        })
+    })
+  })
   describe('POST /api/lists/:listId/items', () => {
     let requester
     let spy
