@@ -56,11 +56,43 @@ const store = new Vuex.Store({
       Logger.debug('New value', state.currentList)
     },
     addAttendee (state, attendee) {
+      if (state.currentList.attendees.some(att => att.id === attendee.id)) {
+        Logger.warn('Ignoring existing attendee', attendee)
+        return
+      }
       state.currentList.attendees.push(attendee)
     },
     addItem (state, item) {
-      Logger.debug(state)
+      if (state.currentList.items.some(it => it.id === item.id)) {
+        Logger.warn('Ignoring existing item', item)
+        return
+      }
       state.currentList.items.push(item)
+    },
+    updateItem (state, item) {
+      const toUpdate = state.currentList.items.find(it => it.id === item.id)
+      Logger.debug('To Update', item.id)
+      Logger.debug('In', state.currentList.items)
+      if (!toUpdate) {
+        Logger.error('Item to update not found')
+        return
+      }
+      setProperty(toUpdate, item, 'name')
+      setProperty(toUpdate, item, 'author')
+      setProperty(toUpdate, item, 'quantity')
+      setProperty(toUpdate, item, 'responsible')
+      Logger.debug(state)
+    },
+    removeItem (state, itemId) {
+      const toRemove = state.currentList.items.find(it => it.id === itemId)
+      if (!toRemove) {
+        Logger.error('Item to delete not found')
+        return
+      }
+      const index = state.currentList.items.indexOf(toRemove)
+      if (index > -1) {
+        state.currentList.items.splice(index, 1)
+      }
     }
   }
 })

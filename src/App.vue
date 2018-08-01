@@ -40,6 +40,12 @@ export default {
 .fa {
   margin-right: 5px;
 }
+.md-icon-button {
+  .fa {
+    margin: 0;
+  }
+}
+
 .white {
   color: white;
 }

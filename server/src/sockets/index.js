@@ -16,7 +16,7 @@ module.exports = (io) => {
     console.log(`User ${user} joined list ${list}`)
     console.log('Connected: ')
     console.log(SocketsUtils.connections.get(list))
-    socket.to(list).emit('user connected', [...SocketsUtils.connections.get(list).keys()])
+    io.sockets.to(list).emit('user connected', [...SocketsUtils.connections.get(list).keys()])
   }
   const userDisconnected = (socket) => {
     const list = socket.handshake.query.listId
@@ -28,7 +28,7 @@ module.exports = (io) => {
     } else {
       users.delete(user)
     }
-    socket.to(list).emit('user disconnected', [...SocketsUtils.connections.get(list).keys()])
+    io.sockets.to(list).emit('user disconnected', [...SocketsUtils.connections.get(list).keys()])
     socket.leave(list)
     console.log(`User ${user} left list ${list}`)
     console.log('Connected: ')
@@ -46,6 +46,12 @@ module.exports = (io) => {
   }
   SocketsUtils.itemAdded = (listId, item) => {
     io.sockets.to(listId).emit('item added', item)
+  }
+  SocketsUtils.itemUpdated = (listId, item) => {
+    io.sockets.to(listId).emit('item updated', item)
+  }
+  SocketsUtils.itemRemoved = (listId, itemId) => {
+    io.sockets.to(listId).emit('item removed', itemId)
   }
   return SocketsUtils
 }

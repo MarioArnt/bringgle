@@ -1,6 +1,18 @@
 const User = require('../models/user')
+const errors = require('../constants/errors')
 
 const UsersController = {}
+
+UsersController.findById = async (id, build = false) => {
+  return new Promise((resolve, reject) => {
+    User.findById(id, (err, user) => {
+      if (err) reject(errors.databaseAccess(err))
+      else if (user == null) reject(errors.ressourceNotFound({ type: 'user', id }))
+      else if (build) resolve(UsersController.userBuilder(user))
+      else resolve(user)
+    })
+  })
+}
 
 UsersController.userBuilder = (user) => {
   return {
@@ -10,13 +22,12 @@ UsersController.userBuilder = (user) => {
   }
 }
 
-UsersController.fetchAndBuildUser = (userId, res) => {
-  return new Promise(resolve => {
-    User.findById(userId, (err, attendee) => {
-      if (err) res.status(404).send(err)
-      else {
-        resolve(UsersController.userBuilder(attendee))
-      }
+UsersController.save = async (user, build = false) => {
+  return new Promise((resolve, reject) => {
+    user.save((err, user) => {
+      if (err) reject(errors.databaseAccess(err))
+      else if (build) resolve(UsersController.userBuilder(user))
+      else resolve(user)
     })
   })
 }

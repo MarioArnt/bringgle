@@ -14,9 +14,37 @@
                     div.circle(:class="attendee.connected ? 'green' : 'red'")
                     | {{ attendee.connected ? 'Online' : 'Offline' }}
       div#items
+        md-dialog(:md-active.sync="showDialog")
+          md-dialog-title Preferences
+          md-dialog-content
+            .sub-item(v-for="i in selectedItem.quantity")
+              md-checkbox(v-model="selectedItem.responsible[i] !== undefined" v-on:change="bringItem(selectedItem, i)")
+                span.item-name {{ selectedItem.name }} {{`#${i}`}}
+                span.brought-by(v-if="selectedItem.responsible[i]")  | {{ selectedItem.responsible[i].name }}
         h3 Items
-        ul
-          li(v-for="item in $store.state.currentList.items") {{ item.name }}
+        .items-container
+          div.item(v-for="item in $store.state.currentList.items")
+            .md-layout.md-gutter.md-alignment-center-space-between
+              .md-layout-item
+                md-checkbox(v-if="item.quantity === 1" v-model="Object.keys(item.responsible).length === 1" v-on:change="bringItem(item, 0)")
+                  span.item-name {{ item.name }}
+                  span.brought-by(v-if="item.responsible[0]")  | {{ item.responsible[0].name }}
+                md-checkbox(v-if="item.quantity > 1" indeterminate v-on:change="openItemDetails(item)")
+                  span.item-name {{ item.name }}
+                  span.brought-by  ({{ Object.keys(item.responsible).length }}/{{ item.quantity}})
+              .md-layout-item
+                md-menu(md-direction="bottom-end")
+                  md-button.md-icon-button(md-menu-trigger)
+                    i.fa.fa-ellipsis-v
+                  md-menu-content
+                    md-menu-item(v-on:click="editItem(item)")
+                      span
+                        i.fa.fa-edit
+                        | Edit
+                    md-menu-item(v-on:click="removeItem(item)")
+                      span
+                        i.fa.fa-trash
+                        | Remove
         .md-layout.md-gutter.md-alignment-center
           .md-layout-item#qty
             md-field
@@ -48,8 +76,18 @@ const userJoined = (store, user) => {
 }
 
 const itemAdded = (store, item) => {
-  Logger.info('New item added to list')
+  Logger.info('New item added to list', item)
   store.commit('addItem', item)
+}
+
+const itemUpdated = (store, item) => {
+  Logger.info('Item updated', item)
+  store.commit('updateItem', item)
+}
+
+const itemRemoved = (store, itemId) => {
+  Logger.info('Item remove', itemId)
+  store.commit('removeItem', itemId)
 }
 
 export default {
@@ -57,10 +95,12 @@ export default {
     return {
       loaded: false,
       error: false,
+      showDialog: false,
       newItem: {
         qty: 1,
         label: ''
-      }
+      },
+      selectedItem: {}
     }
   },
   name: 'List',
@@ -82,6 +122,8 @@ export default {
         socket.on('user disconnected', connected => userConnectedOrDisconnected(this.$store, connected))
         socket.on('user joined', user => userJoined(this.$store, user))
         socket.on('item added', item => itemAdded(this.$store, item))
+        socket.on('item updated', item => itemUpdated(this.$store, item))
+        socket.on('item removed', item => itemRemoved(this.$store, item))
         Logger.info('Socket created', socket)
       } else {
         Logger.info('Current user is not an attendee, redirecting...', this.$store.state.currentUser)
@@ -100,6 +142,39 @@ export default {
         name: this.newItem.label,
         author: this.$store.state.currentUser.id
       }).then((res) => {
+        this.newItem.qty = 1
+        this.newItem.label = ''
+        Logger.debug(res)
+      })
+    },
+    bringItem (item, sub) {
+      Logger.debug(item.responsible)
+      Logger.debug(sub)
+      Logger.debug(item.responsible[sub])
+      Logger.debug(!!item.responsible[sub])
+      Logger.info(`User ${this.$store.state.currentUser.name} brings item ${item.name}`)
+      axios.patch(`lists/${this.$store.state.currentList.id}/items/${item.id}`, {
+        userId: this.$store.state.currentUser.id,
+        action: !!item.responsible[sub] ? 'A02' : 'A01',
+        sub
+      }).then((res) => {
+        Logger.debug(res)
+      })
+    },
+    openItemDetails (item) {
+      this.selectedItem = item
+      this.showDialog = true
+    },
+    editItem (item) {
+      Logger.info(`User ${this.$store.state.currentUser.name} edit item ${item.name}`)
+    },
+    removeItem (item) {
+      Logger.info(`User ${this.$store.state.currentUser.name} remove item ${item.name}`)
+      axios.delete(`lists/${this.$store.state.currentList.id}/items/${item.id}`, {
+        params: {
+          userId: this.$store.state.currentUser.id
+        }
+      }).then(res => {
         Logger.debug(res)
       })
     }
@@ -139,9 +214,9 @@ $attendees-panel-width: 25%;
   }
   #add-item {
     width: 80px;
-    .fa {
-      margin: 0;
-    }
+  }
+  .brought-by {
+    color: lightslategrey;
   }
 }
 </style>
