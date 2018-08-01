@@ -1,7 +1,8 @@
 import axios from 'axios'
+import config from '@/config'
 
 const defaultConfig = {
-  baseURL: 'http://localhost:8081/api'
+  baseURL: `http://${config.server.host}:${config.server.port}/api`
 }
 
 export default axios.create(defaultConfig)
