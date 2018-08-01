@@ -14,13 +14,24 @@
                     div.circle(:class="attendee.connected ? 'green' : 'red'")
                     | {{ attendee.connected ? 'Online' : 'Offline' }}
       div#items
+        md-dialog(:md-active.sync="showDialog")
+          md-dialog-title Preferences
+          md-dialog-content
+            .sub-item(v-for="i in selectedItem.quantity")
+              md-checkbox(v-model="selectedItem.responsible[i] !== undefined" v-on:change="bringItem(selectedItem, i)")
+                span.item-name {{ selectedItem.name }} {{`#${i}`}}
+                span.brought-by(v-if="selectedItem.responsible[i]")  | {{ selectedItem.responsible[i].name }}
         h3 Items
         .items-container
           div.item(v-for="item in $store.state.currentList.items")
             .md-layout.md-gutter.md-alignment-center-space-between
               .md-layout-item
-                md-checkbox(v-if="item.quantity === 1" v-model="item.responsible.length === 1" v-on:change="bringItem(item)") {{ item.name }}
-                md-checkbox(v-if="item.quantity > 1" indeterminate v-on:change="bringItem(item)") {{ item.name }}
+                md-checkbox(v-if="item.quantity === 1" v-model="Object.keys(item.responsible).length === 1" v-on:change="bringItem(item, 0)")
+                  span.item-name {{ item.name }}
+                  span.brought-by(v-if="item.responsible[0]")  | {{ item.responsible[0].name }}
+                md-checkbox(v-if="item.quantity > 1" indeterminate v-on:change="openItemDetails(item)")
+                  span.item-name {{ item.name }}
+                  span.brought-by  ({{ Object.keys(item.responsible).length }}/{{ item.quantity}})
               .md-layout-item
                 md-menu(md-direction="bottom-end")
                   md-button.md-icon-button(md-menu-trigger)
@@ -84,10 +95,12 @@ export default {
     return {
       loaded: false,
       error: false,
+      showDialog: false,
       newItem: {
         qty: 1,
         label: ''
-      }
+      },
+      selectedItem: {}
     }
   },
   name: 'List',
@@ -129,16 +142,28 @@ export default {
         name: this.newItem.label,
         author: this.$store.state.currentUser.id
       }).then((res) => {
+        this.newItem.qty = 1
+        this.newItem.label = ''
         Logger.debug(res)
       })
     },
-    bringItem (item) {
+    bringItem (item, sub) {
+      Logger.debug(item.responsible)
+      Logger.debug(sub)
+      Logger.debug(item.responsible[sub])
+      Logger.debug(!!item.responsible[sub])
       Logger.info(`User ${this.$store.state.currentUser.name} brings item ${item.name}`)
       axios.patch(`lists/${this.$store.state.currentList.id}/items/${item.id}`, {
-        userId: this.$store.state.currentUser.id
+        userId: this.$store.state.currentUser.id,
+        action: !!item.responsible[sub] ? 'A02' : 'A01',
+        sub
       }).then((res) => {
         Logger.debug(res)
       })
+    },
+    openItemDetails (item) {
+      this.selectedItem = item
+      this.showDialog = true
     },
     editItem (item) {
       Logger.info(`User ${this.$store.state.currentUser.name} edit item ${item.name}`)
@@ -189,6 +214,9 @@ $attendees-panel-width: 25%;
   }
   #add-item {
     width: 80px;
+  }
+  .brought-by {
+    color: lightslategrey;
   }
 }
 </style>

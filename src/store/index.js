@@ -56,7 +56,7 @@ const store = new Vuex.Store({
       Logger.debug('New value', state.currentList)
     },
     addAttendee (state, attendee) {
-      if (state.currentList.items.some(it => it.id === attendee.id)) {
+      if (state.currentList.attendees.some(att => att.id === attendee.id)) {
         Logger.warn('Ignoring existing attendee', attendee)
         return
       }
