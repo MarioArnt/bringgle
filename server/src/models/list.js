@@ -1,8 +1,5 @@
 const mongoose = require('mongoose')
 const Schema = mongoose.Schema
-const User = require('./user')
-const ListItem = require('./item')
-
 const ListSchema = new Schema({
   title: {
     type: String,
@@ -10,16 +7,16 @@ const ListSchema = new Schema({
   },
   owner: {
     type: Schema.ObjectId,
-    ref: 'User',
+    ref: 'user',
     required: true
   },
   attendees: [{
     type: Schema.ObjectId,
-    ref: 'User'
+    ref: 'user'
   }],
   items: [{
     type: Schema.ObjectId,
-    ref: 'ListItem'
+    ref: 'item'
   }],
   created: Date
 })

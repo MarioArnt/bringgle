@@ -1,11 +1,11 @@
 module.exports = (SocketsUtils) => {
-  const _ = require('lodash')
   const User = require('../models/user')
-  const List = require('../models/list')
   const ListItem = require('../models/item')
+  const List = require('../models/list')
   const UsersController = require('./users')
   const ItemsController = require('./items')
   const errors = require('../constants/errors')
+  const actions = require('../constants/actions')
 
   const ListsController = {}
 
@@ -15,7 +15,7 @@ module.exports = (SocketsUtils) => {
   }
 
   const checkRequired = (field, value) => {
-    if (!value) return errors.missingRequiredField(field)
+    if (!value && value !== 0) return errors.missingRequiredField(field)
     return null
   }
 
@@ -41,28 +41,28 @@ module.exports = (SocketsUtils) => {
     const userEmail = req.body.userEmail
     const userId = req.body.userId
     const err = checkRequired('listName', listName)
-    if (err) return res.status(err.status).json(err)
+    if (err) return res.status(err.status || 500).json(err)
     if (!userId) {
       createUserAndList(listName, userName, userEmail).then((createdList)=> {
         return res.status(200).json(createdList)
       }, (err) => {
-        return res.status(err.status).json(err)
+        return res.status(err.status || 500).json(err)
       })
     } else {
       UsersController.findById(userId).then((user) => {
         createList(listName, user).then((createdList) => {
           return res.status(200).json(createdList)
         }, (err) => {
-          return res.status(err.status).json(err)
+          return res.status(err.status || 500).json(err)
         })
       }, (err) => {
         if (err.code === errors.code.RESOURCE_NOT_FOUND) {
           createUserAndList(listName, userName, userEmail).then((createdList) => {
             return res.status(200).json(createdList)
           }, (err) => {
-            return res.status(err.status).json(err)
+            return res.status(err.status || 500).json(err)
           })
-        } else return res.status(err.status).json(err)
+        } else return res.status(err.status || 500).json(err)
       })
     }
   }
@@ -97,19 +97,19 @@ module.exports = (SocketsUtils) => {
     const userEmail = req.body.userEmail
     const userId = req.body.userId
     const err = checkId(uncastFalsyRequestParamter(listId), 'list_id')
-    if (err) return res.status(err.status).send(err)
+    if (err) return res.status(err.status || 500).send(err)
     if (!userId) {
       createUserAndJoinList(listId, userName, userEmail).then((data) => {
         SocketsUtils.joinList(data.listId, data.attendee)
         return res.status(200).json(data)
-      }).catch((err) => { return res.status(err.status).send(err) })
+      }).catch((err) => { return res.status(err.status || 500).send(err) })
     } else {
       UsersController.findById(req.body.userId).then((user) => {
         addAttendeeToList(listId, user).then((data) => {
           SocketsUtils.joinList(data.listId, data.attendee)
           return res.status(200).json(data)
         }).catch((err) => {
-          return res.status(err.status).send(err)
+          return res.status(err.status || 500).send(err)
         })
       }, (err) => {
         if (err.code === errors.code.RESOURCE_NOT_FOUND) {
@@ -117,9 +117,9 @@ module.exports = (SocketsUtils) => {
             SocketsUtils.joinList(data.listId, data.attendee)
             return res.status(200).json(data)
           }).catch((err) => {
-            return res.status(err.status).send(err)
+            return res.status(err.status || 500).send(err)
           })
-        } else return res.status(err.status).send(err)
+        } else return res.status(err.status || 500).send(err)
       })
     }
   }
@@ -149,13 +149,19 @@ module.exports = (SocketsUtils) => {
     }
   }
 
-  ListsController.findById = async (id) => {
+  ListsController.findById = async (id, eager = false) => {
     return new Promise((resolve, reject) => {
-      List.findById(id, (err, list) => {
+      const callback = (err, list) => {
         if (err) reject(errors.databaseAccess(err))
-        else if (list == null) reject(errors.ressourceNotFound({ type: 'list', id }))
+        else if (list == null) reject(errors.ressourceNotFound({type: 'list', id}))
         else resolve(list)
-      })
+      }
+      if (eager) {
+        return List.findById(id).populate('owner').populate('attendees').populate('items').populate({
+          path: 'items',
+          populate: { path: 'responsible' }
+        }).exec(callback)
+      } else return List.findById(id, callback)
     })
   }
 
@@ -167,50 +173,23 @@ module.exports = (SocketsUtils) => {
 
   ListsController.getList = async (req, res) => {
     const err = checkId(uncastFalsyRequestParamter(req.params.id), 'list_id')
-    if (err) return res.status(err.status).send(err)
-    fetchListData(req.params.id).then((data) => res.json(data), (err) => res.status(err.status).send(err))
+    if (err) return res.status(err.status || 500).send(err)
+    fetchListData(req.params.id).then((data) => res.json(data), (err) => res.status(err.status || 500).send(err))
   }
 
   const fetchListData = async (id) => {
-    const list = await ListsController.findById(id).catch((err) => Promise.reject(err))
-    const owner = await UsersController.findById(list.owner, true).catch((err) => Promise.reject(err))
-    const attendees = await fetchListAttendees(list).catch((err) => Promise.reject(err))
-    const items = await fetchListItems(list).catch((err) => Promise.reject(err))
-    return ListsController.listBuilder(list, owner, attendees, items)
+    const list = await ListsController.findById(id, true).catch((err) => Promise.reject(err))
+    return ListsController.listBuilder(list)
   }
 
-  ListsController.listBuilder = (list, owner, attendees, items) => {
+  ListsController.listBuilder = (list) => {
     return {
       id: list._id,
       title: list.title,
-      owner,
-      attendees: attendees || [],
-      items: items || []
+      owner: UsersController.userBuilder(list.owner),
+      attendees: list.attendees.map((att) => UsersController.userBuilder(att)),
+      items: list.items.map((it) => ItemsController.itemBuilder(it))
     }
-  }
-
-  const fetchListAttendees = async (list) => {
-    return new Promise((resolve, reject) => {
-      const attendeesPromise = []
-      for (let i = 0; i < list.attendees.length; ++i) {
-        attendeesPromise.push(UsersController.findById(list.attendees[i], true))
-      }
-      Promise.all(attendeesPromise).then((attendees) => {
-        resolve(attendees)
-      }, (err) => reject(err))
-    })
-  }
-
-  const fetchListItems = async (list) => {
-    return new Promise((resolve, reject) => {
-      const itemsPromises = []
-      list.items.forEach(itemId => {
-        itemsPromises.push(ItemsController.findById(itemId, true))
-      })
-      Promise.all(itemsPromises).then((items) => {
-        resolve(items)
-      }, (err) => reject(err))
-    })
   }
 
   ListsController.addItem = async (req, res) => {
@@ -219,12 +198,12 @@ module.exports = (SocketsUtils) => {
     if (!err) err = checkRequired('author', req.body.author)
     if (!err) err = checkRequired('quantity', req.body.quantity)
     if (!err) err = checkQuantity(req.body.quantity)
-    if (err) return res.status(err.status).send(err)
+    if (err) return res.status(err.status || 500).send(err)
 
     addItem(req.params.id, req.body.author, req.body.quantity, req.body.name).then((data) => {
       SocketsUtils.itemAdded(data.list._id, ItemsController.itemBuilder(data.item))
       return res.status(200).send(data.item)
-    }, (err) => { return res.status(err.status).send(err) })
+    }, (err) => { return res.status(err.status || 500).send(err) })
   }
 
   const addItem = async (listId, authorId, quantity, name) => {
@@ -238,7 +217,7 @@ module.exports = (SocketsUtils) => {
     item.quantity = quantity
     item.name = name
     item.author = author
-    item.responsible = []
+    item.responsible = {}
 
     item = await ItemsController.save(item).catch((err) => Promise.reject(err))
     return addItemToList(list, item).catch((err) => Promise.reject(err))
@@ -254,37 +233,61 @@ module.exports = (SocketsUtils) => {
     })
   }
 
-  ListsController.bringItem = async (req, res) => {
-    let err = checkId(req.body.userId, 'user')
-    if (err) return res.send(err.status).send(err)
-    const list = await ListsController.findById(req.params.listId).catch(err => res.send(err.status).send(err))
-    const item = await ItemsController.findById(req.params.itemId).catch(err => res.send(err.status).send(err))
-    const user = await UsersController.findById(req.body.userId).catch(err => res.status(err.status).send(err))
-    err = checkAuthorized(list, user._id, 'bring/clear item')
-    if (!err) err = checkItemInList(list, item._id)
-    if (err) return res.send(err.status).send(err)
+  ListsController.updateItem = (req, res) => {
+    const listId = req.params.listId
+    const itemId = req.params.itemId
+    const payload = req.body
+    let err = checkId(uncastFalsyRequestParamter(listId), 'list')
+    if (!err) err = checkId(uncastFalsyRequestParamter(itemId), 'item')
+    if (!err) err = checkId(payload.userId, 'user')
+    if (!err) err = checkRequired('action', payload.action)
+    if (err) return res.status(err.status).send(err)
+    updateItem(listId, itemId, payload).then((data) => {
+      SocketsUtils.itemUpdated(listId, data)
+      return res.status(200).json(data)
+    }, (err) => { return res.status(err.status || 500).send(err) })
+  }
 
-    if (item.quantity === 1) {
-      console.log('Handle case 1 item')
-      if (item.responsible.length === 1) {
-        console.log('Already brought, clearing')
-        item.responsible = []
-      } else {
-        console.log('User bring it')
-        item.responsible = [user._id]
-      }
-    } else {
-      if (!req.body.responsibleId) {
-        item.responsible.push(user._id)
-      } else {
-        console.log('Not supported yet')
-      }
+  const updateItem = async (listId, itemId, payload) => {
+    const list = await ListsController.findById(listId).catch(err => Promise.reject(err))
+    const item = await ItemsController.findById(itemId).catch(err => Promise.reject(err))
+    const user = await UsersController.findById(payload.userId).catch(err => Promise.reject(err))
+    let err = checkAuthorized(list, user._id, 'update item')
+    if (!err) err = checkItemInList(list, item._id)
+    if (err) return Promise.reject(err)
+    switch (payload.action) {
+      case actions.BRING_ITEM.code:
+        return bringItem(item, payload.sub, user)
+      case actions.CLEAR_ITEM.code:
+        return clearItem(item, payload.sub)
+      case actions.UPDATE_QUANTITY.code:
+        break
+      case actions.UPDATE_NAME.code:
+        break
+      default:
+        return Promise.reject(errors.invalidAction(payload.action))
     }
-    console.log('Saving item')
-    const savedItem = await ItemsController.save(item, true).catch(err => res.status(err.status).send(err))
-    console.log('Done sending response')
-    SocketsUtils.itemUpdated(list._id, savedItem)
-    res.status(200).json(savedItem)
+  }
+
+  const bringItem = async (item, sub, user) => {
+    const err = checkRequired('sub-item', sub)
+    if (err) return Promise.reject(err)
+    const subItem = sub.toString()
+    if (item.responsible.get(subItem)) return Promise.reject(errors.itemAlreadyBrought(item._id))
+    item.responsible.set(subItem, user._id)
+    const savedItem = await ItemsController.save(item, true).catch((err) => Promise.reject(err))
+    return savedItem
+  }
+
+  const clearItem = async (item, sub) => {
+    const err = checkRequired('sub-item', sub)
+    if (err) return Promise.reject(err)
+    const subItem = sub.toString()
+    if (err) return Promise.reject(err)
+    if (!item.responsible.get(subItem)) return Promise.reject(errors.itemAlreadyCleared(item._id))
+    item.responsible.delete(subItem)
+    const savedItem = await ItemsController.save(item, true).catch((err) => Promise.reject(err))
+    return savedItem
   }
 
   ListsController.removeItem = (req, res) => {
@@ -294,11 +297,11 @@ module.exports = (SocketsUtils) => {
     let err = checkId(uncastFalsyRequestParamter(listId), 'list')
     if (!err) err = checkId(uncastFalsyRequestParamter(itemId), 'item')
     if (!err) err = checkId(uncastFalsyRequestParamter(userId), 'user')
-    if (err) return res.status(err.status).send(err)
+    if (err) return res.status(err.status || 500).send(err)
     deleteItem(listId, itemId, userId).then((deletedItem) => {
       SocketsUtils.itemRemoved(listId, deletedItem._id)
       return res.status(200).send({ id: deletedItem._id })
-    }, (err) => { return res.status(err.status).send(err) })
+    }, (err) => { return res.status(err.status || 500).send(err) })
   }
 
   const deleteItem = async (listId, itemId, userId) => {

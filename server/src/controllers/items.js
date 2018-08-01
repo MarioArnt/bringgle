@@ -1,4 +1,5 @@
 const ListItem = require('../models/item')
+const UsersController = require('./users')
 const errors = require('../constants/errors')
 
 const ItemsController = {}
@@ -9,9 +10,12 @@ ItemsController.itemBuilder = (item) => {
     name: item.name,
     quantity: item.quantity,
     author: item.author,
-    responsible: item.responsible,
+    responsible: {},
     created: item.created
   }
+  item.responsible.forEach((user, sub) => {
+    build.responsible[sub] = UsersController.userBuilder(user)
+  })
   Object.keys(build).forEach(key => build[key] === undefined && delete build[key])
   return build
 }
@@ -31,8 +35,12 @@ ItemsController.save = async (item, build = false) => {
   return new Promise((resolve, reject) => {
     item.save((err, item) => {
       if (err) reject(errors.databaseAccess(err))
-      else if (build) resolve(ItemsController.itemBuilder(item))
-      else resolve(item)
+      else if (build) {
+        item.populate('responsible', (err) => {
+          if (err) reject(err)
+          resolve(ItemsController.itemBuilder(item))
+        })
+      } else resolve(item)
     })
   })
 }

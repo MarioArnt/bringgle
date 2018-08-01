@@ -1,6 +1,5 @@
 const mongoose = require('mongoose')
 const Schema = mongoose.Schema
-const User = require('./user')
 
 const ListItemSchema = new Schema({
   name: {
@@ -11,18 +10,21 @@ const ListItemSchema = new Schema({
     type: Number,
     required: true,
     validate: function (v) {
-      return (v === 1 && !this.quantity.isNaN && Number.isInteger(this.quantity) && this.quantity > 0)
+      return (!Number.isNaN(v) && Number.isInteger(v) && v > 0 && v < 100)
     }
   },
   author: {
     type: Schema.ObjectId,
     required: true,
-    ref: 'User'
+    ref: 'user'
   },
-  responsible: [{
-    type: Schema.ObjectId,
-    ref: 'User'
-  }],
+  responsible: {
+    type: Map,
+    of: {
+      type: Schema.ObjectId,
+      ref: 'user'
+    }
+  },
   created: Date
 })
 
