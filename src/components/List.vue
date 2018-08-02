@@ -24,7 +24,7 @@ import ListsController from '@/controllers/lists'
 
 export default {
   data: function () {
-    return {}
+    return { }
   },
   name: 'List',
   components: { ItemsList },
@@ -33,6 +33,9 @@ export default {
   },
   created: function () {
     ListsController.fetchList(this.$route.params.id)
+  },
+  beforeDestroy: function () {
+    // Disconnect socket
   }
 }
 </script>
