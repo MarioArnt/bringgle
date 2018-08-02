@@ -1,3 +1,5 @@
+const logger = require('../logger')
+
 module.exports = (io) => {
   const SocketsUtils = {}
   const userConnected = (socket) => {
@@ -13,9 +15,8 @@ module.exports = (io) => {
     }
     users.set(user, tabCount)
     socket.join(list)
-    console.log(`User ${user} joined list ${list}`)
-    console.log('Connected: ')
-    console.log(SocketsUtils.connections.get(list))
+    logger.info(`User ${user} joined list ${list}`)
+    logger.info(`Now ${SocketsUtils.connections.get(list).size} users are connected to list ${list}`)
     io.sockets.to(list).emit('user connected', [...SocketsUtils.connections.get(list).keys()])
   }
   const userDisconnected = (socket) => {
@@ -30,9 +31,8 @@ module.exports = (io) => {
     }
     io.sockets.to(list).emit('user disconnected', [...SocketsUtils.connections.get(list).keys()])
     socket.leave(list)
-    console.log(`User ${user} left list ${list}`)
-    console.log('Connected: ')
-    console.log(SocketsUtils.connections.get(list))
+    logger.info(`User ${user} left list ${list}`)
+    logger.info(`Now ${SocketsUtils.connections.get(list).size} users are connected to list ${list}`)
   }
   SocketsUtils.connections = new Map()
   SocketsUtils.initialize = () => {

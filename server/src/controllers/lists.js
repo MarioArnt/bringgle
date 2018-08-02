@@ -1,3 +1,5 @@
+const logger = require('../logger')
+
 module.exports = (SocketsUtils) => {
   const User = require('../models/user')
   const ListItem = require('../models/item')
@@ -140,7 +142,7 @@ module.exports = (SocketsUtils) => {
     if (list.attendees.indexOf(user._id) >= 0) return Promise.reject(errors.userAlreadyInList(list._id, user._id))
     list.attendees.push(user)
     const savedList = await ListsController.save(list).catch((err) => {
-      console.log(err)
+      logger.error(err)
       return Promise.reject(err)
     })
     return {
