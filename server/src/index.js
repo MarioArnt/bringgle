@@ -20,7 +20,10 @@ mongoose.connect(`mongodb://${dbConfig.host}:${dbConfig.port}/${dbConfig.name}`,
   err => { logger.error('Database Connection Failed', err) }
 )
 
-app.use(morgan('combined'))
+app.use(morgan('combined', {
+  skip: (req, res) => { return res.statusCode < 400 },
+  stream: logger.stream
+}))
 app.use(bodyParser.json())
 app.use(cors())
 app.use('/', router)

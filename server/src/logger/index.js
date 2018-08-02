@@ -43,4 +43,10 @@ const logger = createLogger({
   transports: useTransports
 })
 
+logger.stream = {
+  write: (message, encoding) => {
+    logger.error(message)
+  }
+}
+
 module.exports = logger

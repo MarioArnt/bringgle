@@ -15,8 +15,8 @@ module.exports = (io) => {
     }
     users.set(user, tabCount)
     socket.join(list)
-    logger.info(`User ${user} joined list ${list}`)
-    logger.info(`Now ${SocketsUtils.connections.get(list).size} users are connected to list ${list}`)
+    logger.debug(`User ${user} joined list ${list}`)
+    logger.debug(`Now ${SocketsUtils.connections.get(list).size} users are connected to list ${list}`)
     io.sockets.to(list).emit('user connected', [...SocketsUtils.connections.get(list).keys()])
   }
   const userDisconnected = (socket) => {
@@ -31,8 +31,8 @@ module.exports = (io) => {
     }
     io.sockets.to(list).emit('user disconnected', [...SocketsUtils.connections.get(list).keys()])
     socket.leave(list)
-    logger.info(`User ${user} left list ${list}`)
-    logger.info(`Now ${SocketsUtils.connections.get(list).size} users are connected to list ${list}`)
+    logger.debug(`User ${user} left list ${list}`)
+    logger.debug(`Now ${SocketsUtils.connections.get(list).size} users are connected to list ${list}`)
   }
   SocketsUtils.connections = new Map()
   SocketsUtils.initialize = () => {
