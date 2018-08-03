@@ -8,15 +8,15 @@
             span.item-name {{ selectedItem.name }} {{`#${i}`}}
             span.brought-by(v-if="selectedItem.responsible[i]")  | {{ selectedItem.responsible[i].name }}
     div.item(v-for="item in $store.state.currentList.items")
-      .md-layout.md-gutter.md-alignment-center-space-between
-        .md-layout-item
+      .md-layout.md-alignment-center-space-between
+        #item-checkbox
           md-checkbox(v-if="item.quantity === 1" v-model="Object.keys(item.responsible).length === 1" v-on:change="bringItem(item, 0)")
             span.item-name {{ item.name }}
             span.brought-by(v-if="item.responsible[0]")  | {{ item.responsible[0].name }}
           md-checkbox(v-if="item.quantity > 1" indeterminate v-on:change="openItemDetails(item)")
             span.item-name {{ item.name }}
             span.brought-by  ({{ Object.keys(item.responsible).length }}/{{ item.quantity}})
-        .md-layout-item
+        #item-menu
           md-menu(md-direction="bottom-end")
             md-button.md-icon-button(md-menu-trigger)
               i.fa.fa-ellipsis-v
@@ -68,5 +68,11 @@ export default {
 <style lang="scss" scoped>
   .brought-by {
     color: lightslategrey;
+  }
+  #item-checkbox {
+    flex: 1
+  }
+  #item-menu {
+    width: 40px
   }
 </style>
