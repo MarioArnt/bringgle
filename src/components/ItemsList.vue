@@ -8,12 +8,12 @@
             span.item-name {{ selectedItem.name }} {{`#${i}`}}
             span.brought-by(v-if="selectedItem.responsible[i]")  | {{ selectedItem.responsible[i].name }}
     div.item(v-for="item in $store.state.currentList.items")
-      .md-layout.md-alignment-center-space-between
+      .md-layout.md-alignment-center-space-between(v-if="!item.edit")
         #item-checkbox
           md-checkbox(v-if="item.quantity === 1" v-model="Object.keys(item.responsible).length === 1" v-on:change="bringItem(item, 0)")
             span.item-name {{ item.name }}
             span.brought-by(v-if="item.responsible[0]")  | {{ item.responsible[0].name }}
-          md-checkbox(v-if="item.quantity > 1" indeterminate v-on:change="openItemDetails(item)")
+          md-checkbox(v-if="item.quantity > 1" v-on:change="openItemDetails(item)")
             span.item-name {{ item.name }}
             span.brought-by  ({{ Object.keys(item.responsible).length }}/{{ item.quantity}})
         #item-menu
@@ -29,6 +29,7 @@
                 span
                   i.fa.fa-trash
                   | Remove
+      add-item(v-if="item.edit" :item-id='item.id' :item-name="item.name" :item-quantity="item.quantity")
     add-item
 </template>
 
@@ -36,6 +37,7 @@
 import Logger from 'js-logger'
 import ItemsController from '@/controllers/items'
 import AddItem from '@/components/AddItem'
+import Vue from 'vue'
 
 export default {
   name: 'ItemsList',
@@ -56,6 +58,7 @@ export default {
     },
     editItem (item) {
       Logger.info(`User ${this.$store.state.currentUser.name} edit item ${item.name}`)
+      Vue.set(item, 'edit', true)
     },
     removeItem (item) {
       Logger.info(`User ${this.$store.state.currentUser.name} remove item ${item.name}`)

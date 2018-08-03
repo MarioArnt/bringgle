@@ -266,13 +266,32 @@ module.exports = (SocketsUtils) => {
         return bringItem(item, payload.sub, user)
       case actions.CLEAR_ITEM.code:
         return clearItem(item, payload.sub)
-      case actions.UPDATE_QUANTITY.code:
-        break
-      case actions.UPDATE_NAME.code:
-        break
+      case actions.UPDATE_QUANTITY_AND_NAME.code:
+        return updateQuantityAndName(item, payload.newName, payload.newQuantity)
       default:
         return Promise.reject(errors.invalidAction(payload.action))
     }
+  }
+
+  const updateQuantityAndName = async (item, newName, newQuantity) => {
+    let err = checkRequired('name', newName)
+    if (!err) err = checkQuantity(newQuantity)
+    if (err) return Promise.reject(err)
+    item.name = newName
+    item.quantity = newQuantity
+    if (item.responsible.size > newQuantity) {
+      logger.debug('Responsible size higher than quantity')
+      logger.debug(JSON.stringify(item.responsible))
+      const toDelete = item.responsible.size - newQuantity
+      logger.debug('removing items: ' + toDelete)
+      const keys = [...item.responsible.keys()].map((k) => Number(k)).sort((a, b) => a < b)
+      for (let i = 0; i < toDelete; ++i) {
+        item.responsible.delete(keys[i].toString())
+      }
+      logger.debug(JSON.stringify(item.responsible))
+    }
+    const updatedItem = await ItemsController.save(item, true).catch((err) => Promise.reject(err))
+    return updatedItem
   }
 
   const bringItem = async (item, sub, user) => {

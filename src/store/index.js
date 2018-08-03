@@ -23,10 +23,6 @@ const store = new Vuex.Store({
     listStatus: {
       loaded: false,
       error: false
-    },
-    newItem: {
-      quantity: 1,
-      name: ''
     }
   },
   mutations: {
@@ -87,7 +83,16 @@ const store = new Vuex.Store({
       setProperty(toUpdate, item, 'author')
       setProperty(toUpdate, item, 'quantity')
       setProperty(toUpdate, item, 'responsible')
+      Vue.set(toUpdate, 'edit', false)
       Logger.debug(state)
+    },
+    disableEditionState (state, id) {
+      const item = state.currentList.items.find(it => it.id === id)
+      if (!item) {
+        Logger.error('Item not found')
+        return
+      }
+      Vue.set(item, 'edit', false)
     },
     removeItem (state, itemId) {
       const toRemove = state.currentList.items.find(it => it.id === itemId)
@@ -111,10 +116,6 @@ const store = new Vuex.Store({
     clearListStatus (state) {
       Vue.set(state.listStatus, 'loaded', false)
       Vue.set(state.listStatus, 'error', false)
-    },
-    resetNewItem (state) {
-      Vue.set(state.newItem, 'quantity', 1)
-      Vue.set(state.newItem, 'name', '')
     }
   }
 })

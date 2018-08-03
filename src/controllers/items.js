@@ -8,16 +8,21 @@ import actions from '@/constants/actions'
 
 const ItemsController = {}
 
-ItemsController.addItem = () => {
-  const item = store.state.newItem
-  Logger.info('Submitting item', item)
-  axios.post(`lists/${store.state.currentList.id}/items`, {
-    quantity: item.quantity,
-    name: item.name,
-    author: store.state.currentUser.id
-  }).then((res) => {
-    store.commit('resetNewItem')
-  }, (err) => addItemErrorHandler(err))
+ItemsController.addItem = (quantity, name) => {
+  return new Promise((resolve, reject) => {
+    const item = { quantity, name }
+    Logger.info('Submitting item', item)
+    axios.post(`lists/${store.state.currentList.id}/items`, {
+      quantity: item.quantity,
+      name: item.name,
+      author: store.state.currentUser.id
+    }).then(() => {
+      resolve()
+    }, (err) => {
+      addItemErrorHandler(err.response)
+      reject(err)
+    })
+  })
 }
 
 const addItemErrorHandler = (err) => {
@@ -71,6 +76,19 @@ const bringItemErrorHandler = (err) => {
       this.$toastr.e(msg)
       break
   }
+}
+
+ItemsController.updateItem = (id, quantity, name) => {
+  return new Promise((resolve, reject) => {
+    axios.patch(`lists/${store.state.currentList.id}/items/${id}`, {
+      userId: store.state.currentUser.id,
+      action: actions.UPDATE_QUANTITY_AND_NAME.code,
+      newName: name,
+      newQuantity: quantity
+    }).then((res) => {
+      resolve()
+    }, (err) => reject(err))
+  })
 }
 
 ItemsController.removeItem = (id) => {
