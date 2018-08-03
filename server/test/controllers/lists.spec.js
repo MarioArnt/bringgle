@@ -516,6 +516,7 @@ describe('List Controller', () => {
           done()
         })
     })
+    it.skip('should return 401 if user does not attend the list')
     it('should return 200 if list with given ID exists and every database requests suceeds', (done) => {
       const id = '5b5c39c618774c33b4b0a010'
       const list = {

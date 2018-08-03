@@ -100,21 +100,21 @@ errors.invalidAction = (action) => {
   }
 }
 
-errors.itemAlreadyBrought = (id) => {
+errors.itemAlreadyBrought = (item) => {
   return {
     code: errors.code.ITEM_ALREADY_BROUGHT,
     status: 400,
     msg: 'Item Already Brought',
-    details: {itemId: id}
+    details: item
   }
 }
 
-errors.itemAlreadyCleared = (id) => {
+errors.itemAlreadyCleared = (item) => {
   return {
     code: errors.code.ITEM_ALREADY_CLEARED,
     status: 400,
     msg: 'Item Already Cleared',
-    details: {itemId: id}
+    details: item
   }
 }
 

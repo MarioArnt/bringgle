@@ -19,6 +19,14 @@ const store = new Vuex.Store({
       attendees: [],
       connected: [],
       items: []
+    },
+    listStatus: {
+      loaded: false,
+      error: false
+    },
+    newItem: {
+      quantity: 1,
+      name: ''
     }
   },
   mutations: {
@@ -71,8 +79,6 @@ const store = new Vuex.Store({
     },
     updateItem (state, item) {
       const toUpdate = state.currentList.items.find(it => it.id === item.id)
-      Logger.debug('To Update', item.id)
-      Logger.debug('In', state.currentList.items)
       if (!toUpdate) {
         Logger.error('Item to update not found')
         return
@@ -93,6 +99,22 @@ const store = new Vuex.Store({
       if (index > -1) {
         state.currentList.items.splice(index, 1)
       }
+    },
+    listLoaded (state) {
+      Vue.set(state.listStatus, 'loaded', true)
+      Vue.set(state.listStatus, 'error', false)
+    },
+    errorLoadingList (state) {
+      Vue.set(state.listStatus, 'loaded', false)
+      Vue.set(state.listStatus, 'error', true)
+    },
+    clearListStatus (state) {
+      Vue.set(state.listStatus, 'loaded', false)
+      Vue.set(state.listStatus, 'error', false)
+    },
+    resetNewItem (state) {
+      Vue.set(state.newItem, 'quantity', 1)
+      Vue.set(state.newItem, 'name', '')
     }
   }
 })

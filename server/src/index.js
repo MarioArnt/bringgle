@@ -8,26 +8,28 @@ const morgan = require('morgan')
 const SocketsUtils = require('./sockets')(io)
 const router = require('./api')(SocketsUtils)
 const config = require('../config')
+const logger = require('./logger')
 
 const env = process.env.NODE_ENV || 'development'
-console.log(`Starting app in ${env} mode`)
-console.log('Connecting database')
+logger.info(`Starting app in ${env} mode`)
+logger.info('Connecting database')
 const dbConfig = config.database[env]
-console.log(dbConfig)
-mongoose.connect(`mongodb://${dbConfig.host}:${dbConfig.port}/${dbConfig.name}`)
-const db = mongoose.connection
-db.on('error', console.error.bind(console, 'connection error'))
-db.once('open', () => {
-  console.log('Connection Succeeded')
-})
+logger.debug(dbConfig)
+mongoose.connect(`mongodb://${dbConfig.host}:${dbConfig.port}/${dbConfig.name}`, { useNewUrlParser: true }).then(
+  () => { logger.info('Database Connection Succeeded') },
+  err => { logger.error('Database Connection Failed', err) }
+)
 
-app.use(morgan('combined'))
+app.use(morgan('combined', {
+  skip: (req, res) => { return res.statusCode < 400 },
+  stream: logger.stream
+}))
 app.use(bodyParser.json())
 app.use(cors())
 app.use('/', router)
 
 server.listen(process.env.PORT || 8081)
-console.log('Magic happens on port 8081')
+logger.info('Magic happens on port 8081')
 SocketsUtils.initialize()
 
 module.exports = {

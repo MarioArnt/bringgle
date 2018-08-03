@@ -1,3 +1,5 @@
+const logger = require('../logger')
+
 module.exports = (SocketsUtils) => {
   const User = require('../models/user')
   const ListItem = require('../models/item')
@@ -43,7 +45,7 @@ module.exports = (SocketsUtils) => {
     const err = checkRequired('listName', listName)
     if (err) return res.status(err.status || 500).json(err)
     if (!userId) {
-      createUserAndList(listName, userName, userEmail).then((createdList)=> {
+      createUserAndList(listName, userName, userEmail).then((createdList) => {
         return res.status(200).json(createdList)
       }, (err) => {
         return res.status(err.status || 500).json(err)
@@ -140,7 +142,7 @@ module.exports = (SocketsUtils) => {
     if (list.attendees.indexOf(user._id) >= 0) return Promise.reject(errors.userAlreadyInList(list._id, user._id))
     list.attendees.push(user)
     const savedList = await ListsController.save(list).catch((err) => {
-      console.log(err)
+      logger.error(err)
       return Promise.reject(err)
     })
     return {
@@ -172,13 +174,17 @@ module.exports = (SocketsUtils) => {
   }
 
   ListsController.getList = async (req, res) => {
-    const err = checkId(uncastFalsyRequestParamter(req.params.id), 'list_id')
+    const listId = req.params.id
+    const userId = req.query.userId
+    let err = checkId(uncastFalsyRequestParamter(listId), 'list')
+    if (!err) err = checkId(uncastFalsyRequestParamter(userId), 'user')
     if (err) return res.status(err.status || 500).send(err)
-    fetchListData(req.params.id).then((data) => res.json(data), (err) => res.status(err.status || 500).send(err))
+    fetchListData(listId, userId).then((data) => res.json(data), (err) => res.status(err.status || 500).send(err))
   }
 
-  const fetchListData = async (id) => {
+  const fetchListData = async (id, userId) => {
     const list = await ListsController.findById(id, true).catch((err) => Promise.reject(err))
+    if (!list.attendees.some((att) => att.id === userId)) return Promise.reject(errors.notAuthorized(userId, 'get list'))
     return ListsController.listBuilder(list)
   }
 
@@ -273,7 +279,7 @@ module.exports = (SocketsUtils) => {
     const err = checkRequired('sub-item', sub)
     if (err) return Promise.reject(err)
     const subItem = sub.toString()
-    if (item.responsible.get(subItem)) return Promise.reject(errors.itemAlreadyBrought(item._id))
+    if (item.responsible.get(subItem)) return Promise.reject(errors.itemAlreadyBrought(item))
     item.responsible.set(subItem, user._id)
     const savedItem = await ItemsController.save(item, true).catch((err) => Promise.reject(err))
     return savedItem
@@ -284,7 +290,7 @@ module.exports = (SocketsUtils) => {
     if (err) return Promise.reject(err)
     const subItem = sub.toString()
     if (err) return Promise.reject(err)
-    if (!item.responsible.get(subItem)) return Promise.reject(errors.itemAlreadyCleared(item._id))
+    if (!item.responsible.get(subItem)) return Promise.reject(errors.itemAlreadyCleared(item))
     item.responsible.delete(subItem)
     const savedItem = await ItemsController.save(item, true).catch((err) => Promise.reject(err))
     return savedItem
