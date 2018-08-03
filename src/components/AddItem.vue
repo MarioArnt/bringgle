@@ -1,13 +1,15 @@
 <template lang="pug">
   #new-item.md-layout.md-alignment-center
     #qty
-      md-field
+      md-field(:class="{'md-invalid': errors.has('quantity')}")
         label Quantity
-        md-input(v-model="$store.state.newItem.quantity" type="number")
+        md-input(v-validate="'required|numeric|between:1,99'" name="quantity" v-model="$store.state.newItem.quantity" type="number")
+        span.md-error {{ errors.first('quantity') }}
     #new-item
-      md-field
+      md-field(:class="{'md-invalid': errors.has('item name')}")
         label Item
-        md-input(v-model="$store.state.newItem.name" v-on:keyup.enter="submitItem()")
+        md-input(v-validate="'required'" name="item name" v-model="$store.state.newItem.name" v-on:keyup.enter="submitItem()")
+        span.md-error {{ errors.first('item name') }}
     #add-item
       md-button.md-icon-button(v-on:click="submitItem()")
         i.fa.fa-plus
@@ -23,7 +25,9 @@ export default {
   name: 'AddItem',
   methods: {
     submitItem: function () {
-      ItemsController.addItem()
+      this.$validator.validate().then((valid) => {
+        if (valid) ItemsController.addItem()
+      })
     }
   }
 }
