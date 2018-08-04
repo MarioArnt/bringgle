@@ -18,13 +18,15 @@
                     div.circle(:class="attendee.connected ? 'green' : 'red'")
                     | {{ attendee.connected ? 'Online' : 'Offline' }}
 </template>
-<script>
-import ItemsList from '@/components/ItemsList'
-import ListsController from '@/controllers/lists'
+<script lang="ts">
+import ItemsList from '@/components/ItemsList.vue'
+import ListsController from '@/controllers/lists.ts'
 
 export default {
   data: function () {
-    return { }
+    return {
+      listsController: ListsController
+     }
   },
   name: 'List',
   components: { ItemsList },
@@ -32,7 +34,8 @@ export default {
     this.$store.commit('clearListStatus')
   },
   created: function () {
-    ListsController.fetchList(this.$route.params.id)
+    this.listsController = new ListsController()
+    this.listsController.fetchList(this.$route.params.id)
   },
   beforeDestroy: function () {
     // Disconnect socket

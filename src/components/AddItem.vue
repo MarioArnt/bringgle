@@ -15,9 +15,11 @@
         i.fa.fa-plus
 </template>
 
-<script>
+<script lang="ts">
 import ItemsController from '@/controllers/items'
 import Logger from 'js-logger'
+
+const itemsController: ItemsController = new ItemsController()
 
 export default {
   props: ['itemId', 'itemQuantity', 'itemName'],
@@ -45,7 +47,7 @@ export default {
       this.$validator.validate().then((valid) => {
         if (valid && !this.edit) {
           Logger.debug('Creating new item')
-          ItemsController.addItem(this.quantity, this.name).then(() => {
+          itemsController.addItem(this.quantity, this.name).then(() => {
             this.quantity = 1
             this.name = ''
             this.$forceUpdate()
@@ -58,7 +60,7 @@ export default {
             Logger.debug('Nothing changed')
             this.$store.commit('disableEditionState', this.itemId)
           } else {
-            ItemsController.updateItem(this.itemId, this.quantity, this.name).then(() => {
+            itemsController.updateItem(this.itemId, this.quantity, this.name).then(() => {
               Logger.debug('Item updated')
             })
           }

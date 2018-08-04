@@ -33,11 +33,13 @@
     add-item
 </template>
 
-<script>
+<script lang="ts">
 import Logger from 'js-logger'
-import ItemsController from '@/controllers/items'
-import AddItem from '@/components/AddItem'
+import ItemsController from '../controllers/items'
+import AddItem from '../components/AddItem.vue'
 import Vue from 'vue'
+
+const itemsController: ItemsController = new ItemsController();
 
 export default {
   name: 'ItemsList',
@@ -50,7 +52,7 @@ export default {
   },
   methods: {
     bringItem (item, sub) {
-      ItemsController.bringItem(item, sub)
+      itemsController.bringItem(item, sub)
     },
     openItemDetails (item) {
       this.selectedItem = item
@@ -62,7 +64,7 @@ export default {
     },
     removeItem (item) {
       Logger.info(`User ${this.$store.state.currentUser.name} remove item ${item.name}`)
-      ItemsController.removeItem(item.id)
+      itemsController.removeItem(item.id)
     }
   }
 }

@@ -14,9 +14,11 @@
         | Create list
 </template>
 
-<script>
-import cookiesUtils from '@/cookies'
-import router from '@/router'
+<script lang="ts">
+import router from '../router'
+import CookiesUtils from '../cookies';
+
+const cookiesUtils: CookiesUtils = new CookiesUtils();
 
 export default {
   name: 'Header',
