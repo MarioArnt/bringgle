@@ -6,9 +6,11 @@
       router-view
 </template>
 
-<script>
-import cookiesUtils from '@/cookies'
-import store from '@/store'
+<script lang="ts">
+import CookiesUtils from './cookies'
+import store from './store'
+
+const cookiesUtils: CookiesUtils = new CookiesUtils()
 
 export default {
   name: 'App',

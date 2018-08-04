@@ -13,7 +13,7 @@
         | Create new list
 </template>
 
-<script>
+<script lang="ts">
 export default {
   name: 'Home'
 }

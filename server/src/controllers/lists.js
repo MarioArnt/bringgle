@@ -38,10 +38,10 @@ module.exports = (SocketsUtils) => {
   }
 
   ListsController.createList = (req, res) => {
-    const listName = req.body.listName
-    const userName = req.body.displayName
-    const userEmail = req.body.userEmail
-    const userId = req.body.userId
+    const listName = req.body.title
+    const userName = req.body.owner ? req.body.owner.name : null
+    const userEmail = req.body.owner ? req.body.owner.email : null
+    const userId = req.body.owner ? req.body.owner.id : null
     const err = checkRequired('listName', listName)
     if (err) return res.status(err.status || 500).json(err)
     if (!userId) {
@@ -88,27 +88,27 @@ module.exports = (SocketsUtils) => {
     list.attendees.push(owner)
     const savedList = await ListsController.save(list).catch(err => Promise.reject(err))
     return {
-      id: savedList._id,
-      owner: UsersController.userBuilder(owner)
+      listId: savedList._id,
+      user: UsersController.userBuilder(owner)
     }
   }
 
   ListsController.joinList = (req, res) => {
     const listId = req.params.id
-    const userName = req.body.displayName
-    const userEmail = req.body.userEmail
-    const userId = req.body.userId
+    const userName = req.body.name
+    const userEmail = req.body.email
+    const userId = req.body.id
     const err = checkId(uncastFalsyRequestParamter(listId), 'list_id')
     if (err) return res.status(err.status || 500).send(err)
     if (!userId) {
       createUserAndJoinList(listId, userName, userEmail).then((data) => {
-        SocketsUtils.joinList(data.listId, data.attendee)
+        SocketsUtils.joinList(data.listId, data.user)
         return res.status(200).json(data)
       }).catch((err) => { return res.status(err.status || 500).send(err) })
     } else {
       UsersController.findById(req.body.userId).then((user) => {
         addAttendeeToList(listId, user).then((data) => {
-          SocketsUtils.joinList(data.listId, data.attendee)
+          SocketsUtils.joinList(data.listId, data.user)
           return res.status(200).json(data)
         }).catch((err) => {
           return res.status(err.status || 500).send(err)
@@ -116,7 +116,7 @@ module.exports = (SocketsUtils) => {
       }, (err) => {
         if (err.code === errors.code.RESOURCE_NOT_FOUND) {
           createUserAndJoinList(listId, userName, userEmail).then((data) => {
-            SocketsUtils.joinList(data.listId, data.attendee)
+            SocketsUtils.joinList(data.listId, data.user)
             return res.status(200).json(data)
           }).catch((err) => {
             return res.status(err.status || 500).send(err)
@@ -147,7 +147,7 @@ module.exports = (SocketsUtils) => {
     })
     return {
       listId: savedList._id,
-      attendee: UsersController.userBuilder(user)
+      user: UsersController.userBuilder(user)
     }
   }
 
@@ -266,13 +266,32 @@ module.exports = (SocketsUtils) => {
         return bringItem(item, payload.sub, user)
       case actions.CLEAR_ITEM.code:
         return clearItem(item, payload.sub)
-      case actions.UPDATE_QUANTITY.code:
-        break
-      case actions.UPDATE_NAME.code:
-        break
+      case actions.UPDATE_QUANTITY_AND_NAME.code:
+        return updateQuantityAndName(item, payload.newName, payload.newQuantity)
       default:
         return Promise.reject(errors.invalidAction(payload.action))
     }
+  }
+
+  const updateQuantityAndName = async (item, newName, newQuantity) => {
+    let err = checkRequired('name', newName)
+    if (!err) err = checkQuantity(newQuantity)
+    if (err) return Promise.reject(err)
+    item.name = newName
+    item.quantity = newQuantity
+    if (item.responsible.size > newQuantity) {
+      logger.debug('Responsible size higher than quantity')
+      logger.debug(JSON.stringify(item.responsible))
+      const toDelete = item.responsible.size - newQuantity
+      logger.debug('removing items: ' + toDelete)
+      const keys = [...item.responsible.keys()].map((k) => Number(k)).sort((a, b) => a < b)
+      for (let i = 0; i < toDelete; ++i) {
+        item.responsible.delete(keys[i].toString())
+      }
+      logger.debug(JSON.stringify(item.responsible))
+    }
+    const updatedItem = await ItemsController.save(item, true).catch((err) => Promise.reject(err))
+    return updatedItem
   }
 
   const bringItem = async (item, sub, user) => {

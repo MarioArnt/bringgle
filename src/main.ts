@@ -19,12 +19,10 @@ Vue.use(VueMaterial)
 
 Vue.component('app-header', Header)
 
-/* eslint-disable no-new */
 new Vue({
   el: '#app',
   router,
   store,
   components: { App },
   template: '<App/>',
-  validations: {}
 })

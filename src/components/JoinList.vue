@@ -15,10 +15,12 @@
         | Join
 </template>
 
-<script>
-import ListsController from '@/controllers/lists'
-import store from '@/store'
+<script lang="ts">
+import ListsController from '../controllers/lists'
+import store from '../store'
 import Logger from 'js-logger'
+
+const listsController: ListsController = new ListsController();
 
 export default {
   name: 'JoinList',
@@ -42,7 +44,7 @@ export default {
       this.$validator.validate().then((valid) => {
         if (valid) {
           this.buttonDisabled = true
-          ListsController.joinList(this.$route.params.id, this.displayName, this.userEmail).then(() => {
+          listsController.joinList(this.$route.params.id, this.displayName, this.userEmail).then(() => {
             this.buttonDisabled = false
             this.$toastr.s('Yay ! You join the list')
           }, (err) => {
