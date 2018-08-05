@@ -113,6 +113,15 @@ export default class ListsController {
       })
     })
   }
+
+  public static inviteAttendee = async(listId: string, email: string): Promise<void> => {
+    return new Promise<void>((resolve, reject) => {
+      axios.post(`lists/${listId}/invite`, {
+        userId: store.state.currentUser.id,
+        email
+      }).then(() => resolve(), (err) => reject(err))
+    })
+  }
   
   private postList = async (payload: List): Promise<CreateJoinResponse> => {
     return new Promise<CreateJoinResponse>((resolve, reject) => {

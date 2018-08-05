@@ -1,5 +1,5 @@
-const { createLogger, format, transports } = require('winston')
-const moment = require('moment')
+import { createLogger, format, transports } from 'winston'
+import moment from 'moment'
 const { combine, timestamp, printf } = format
 
 const myFormat = printf(info => {
@@ -43,10 +43,10 @@ const logger = createLogger({
   transports: useTransports
 })
 
-logger.stream = {
+/* logger.stream = {
   write: (message, encoding) => {
     logger.error(message)
   }
-}
+} */
 
-module.exports = logger
+export default logger

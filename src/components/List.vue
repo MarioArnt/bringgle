@@ -4,10 +4,10 @@
     .list-content.md-layout(v-if="$store.state.listStatus.loaded")
       .md-layout-item.md-size-100
         h1 {{  $store.state.currentList.title }}
-      #items.md-layout-item.md-xsmall-size-100.md-small-size-66.md-medium-size-75
+      #items.md-layout-item.md-xsmall-size-100.md-small-size-66
         h3 Items
         items-list
-      #attendees.md-layout-item.md-xsmall-size-100.md-small-size-33.md-medium-size-25
+      #attendees.md-layout-item.md-xsmall-size-100.md-small-size-33
         h3 Attendees
         div.attendee(v-for="attendee in $store.state.currentList.attendees")
             md-card(md-with-hover)
@@ -17,10 +17,12 @@
                   div.md-subhead
                     div.circle(:class="attendee.connected ? 'green' : 'red'")
                     | {{ attendee.connected ? 'Online' : 'Offline' }}
+        add-attendee
 </template>
 <script lang="ts">
 import ItemsList from '@/components/ItemsList.vue'
-import ListsController from '@/controllers/lists.ts'
+import AddAttendee from '@/components/AddAttendee.vue'
+import ListsController from '@/controllers/lists'
 
 export default {
   data: function () {
@@ -29,7 +31,7 @@ export default {
      }
   },
   name: 'List',
-  components: { ItemsList },
+  components: { ItemsList, AddAttendee },
   beforeCreate: function () {
     this.$store.commit('clearListStatus')
   },
