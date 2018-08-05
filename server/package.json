@@ -5,12 +5,18 @@
   "main": "src/index.js",
   "scripts": {
     "test": "nyc mocha --recursive --exit",
-    "start": "./node_modules/nodemon/bin/nodemon.js src/index.js"
+    "build": "tsc",
+    "serve": "node dist/server.js",
+    "start": "tsc && node dist/index.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@types/cors": "^2.8.4",
+    "@types/express": "^4.16.0",
+    "@types/node": "^10.5.6",
+    "@types/socket.io": "^1.4.36",
     "body-parser": "^1.18.3",
     "cors": "^2.8.4",
     "express": "^4.16.3",
@@ -23,6 +29,8 @@
     "winston": "^3.0.0"
   },
   "devDependencies": {
+    "@types/mongoose": "^5.2.3",
+    "@types/morgan": "^1.7.35",
     "babel-preset-env": "^1.7.0",
     "babel-register": "^6.26.0",
     "chai": "^4.1.2",

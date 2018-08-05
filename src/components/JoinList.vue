@@ -4,11 +4,11 @@
     form
       md-field(:class="{'md-invalid': errors.has('email')}")
         label Email
-        md-input(v-validate="'required|email'" v-model="userEmail" placeholder='john.doe@mail.com' id='user-email' name="email" type='email' class='validate' required)
+        md-input(v-validate="'required|email'" v-model="userEmail" placeholder='john.doe@mail.com' id='user-email' name="email" type='email' class='validate'  v-on:keyup.enter="sendData()" required)
         span.md-error {{ errors.first('email') }}
       md-field(:class="{'md-invalid': errors.has('display name')}")
         label  Display Name
-        md-input(v-validate="'required'" v-model="displayName" placeholder='John Doe' id='user-name' name="display name" type='text' class='validate' required)
+        md-input(v-validate="'required'" v-model="displayName" placeholder='John Doe' id='user-name' name="display name" type='text' class='validate'  v-on:keyup.enter="sendData()" required)
         span.md-error {{ errors.first('display name') }}
       md-button.md-raised.md-accent(:disabled="errors.any() || buttonDisabled" v-on:click='sendData()')
         i.fa.fa-plus
