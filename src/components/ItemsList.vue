@@ -13,7 +13,13 @@
           md-checkbox(v-if="item.quantity === 1" v-model="Object.keys(item.responsible).length === 1" v-on:change="bringItem(item, 0)")
             span.item-name {{ item.name }}
             span.brought-by(v-if="item.responsible[0]")  | {{ item.responsible[0].name }}
-          md-checkbox(v-if="item.quantity > 1" v-on:change="openItemDetails(item)")
+          md-checkbox(v-if="item.quantity > 1 && Object.keys(item.responsible).length === 0" v-model="item.quantity < 0" v-on:change="openItemDetails(item)")
+            span.item-name {{ item.name }}
+            span.brought-by  ({{ Object.keys(item.responsible).length }}/{{ item.quantity}})
+          md-checkbox(v-if="item.quantity > 1 && Object.keys(item.responsible).length > 0 && Object.keys(item.responsible).length < item.quantity" v-model="item.quantity > 1" v-on:change="openItemDetails(item)" indeterminate)
+            span.item-name {{ item.name }}
+            span.brought-by  ({{ Object.keys(item.responsible).length }}/{{ item.quantity}})
+          md-checkbox(v-if="item.quantity > 1 && Object.keys(item.responsible).length === item.quantity" v-model="item.quantity > 1" v-on:change="openItemDetails(item)")
             span.item-name {{ item.name }}
             span.brought-by  ({{ Object.keys(item.responsible).length }}/{{ item.quantity}})
         #item-menu
