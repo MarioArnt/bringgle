@@ -17,9 +17,11 @@
                   div.md-subhead
                     div.circle(:class="attendee.connected ? 'green' : 'red'")
                     | {{ attendee.connected ? 'Online' : 'Offline' }}
+        add-attendee
 </template>
 <script lang="ts">
 import ItemsList from '@/components/ItemsList.vue'
+import AddAttendee from '@/components/AddAttendee.vue'
 import ListsController from '@/controllers/lists'
 
 export default {
@@ -29,7 +31,7 @@ export default {
      }
   },
   name: 'List',
-  components: { ItemsList },
+  components: { ItemsList, AddAttendee },
   beforeCreate: function () {
     this.$store.commit('clearListStatus')
   },
