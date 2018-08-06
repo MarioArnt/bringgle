@@ -111,21 +111,21 @@ public static invalidAction = (action: string): ErrorModel => {
   }
 }
 
-public static itemAlreadyBrought = (item: ItemModel): ErrorModel => {
+public static itemAlreadyBrought = (itemId: string): ErrorModel => {
   return {
     code: Errors.code.ITEM_ALREADY_BROUGHT,
     status: 400,
     msg: 'Item Already Brought',
-    details: item
+    details: itemId
   }
 }
 
-public static itemAlreadyCleared = (item: ItemModel): ErrorModel => {
+public static itemAlreadyCleared = (itemId: string): ErrorModel => {
   return {
     code: Errors.code.ITEM_ALREADY_CLEARED,
     status: 400,
     msg: 'Item Already Cleared',
-    details: item
+    details: itemId
   }
 }
 }

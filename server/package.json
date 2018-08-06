@@ -4,10 +4,29 @@
   "description": "",
   "main": "src/index.js",
   "scripts": {
-    "test": "nyc mocha --recursive --exit",
+    "test": "nyc mocha",
     "build": "tsc",
-    "serve": "node dist/server.js",
-    "start": "tsc && node dist/index.js"
+    "serve": "node dist/src/index.js",
+    "start": "tsc && node dist/src/index.js"
+  },
+  "nyc": {
+    "include": [
+      "src/**/*.ts",
+      "src/**/*.tsx"
+    ],
+    "extension": [
+      ".ts",
+      ".tsx"
+    ],
+    "require": [
+      "ts-node/register"
+    ],
+    "reporter": [
+      "text-summary",
+      "html"
+    ],
+    "sourceMap": true,
+    "instrument": true
   },
   "keywords": [],
   "author": "",
@@ -19,23 +38,32 @@
     "@types/socket.io": "^1.4.36",
     "body-parser": "^1.18.3",
     "cors": "^2.8.4",
+    "email-templates": "^4.0.3",
     "express": "^4.16.3",
     "mocha": "^5.2.0",
     "moment": "^2.22.2",
     "mongoose": "^5.2.3",
     "morgan": "^1.9.0",
+    "pug": "^2.0.3",
     "sinon": "^6.1.4",
     "socket.io": "^2.1.1",
     "winston": "^3.0.0"
   },
   "devDependencies": {
+    "@types/chai": "^4.1.4",
+    "@types/chai-http": "^3.0.5",
+    "@types/mocha": "^5.2.5",
     "@types/mongoose": "^5.2.3",
     "@types/morgan": "^1.7.35",
+    "@types/sinon": "^5.0.1",
+    "@types/supertest": "^2.0.5",
     "babel-preset-env": "^1.7.0",
     "babel-register": "^6.26.0",
     "chai": "^4.1.2",
     "chai-http": "^4.0.0",
     "nodemon": "^1.18.1",
-    "nyc": "^12.0.2"
+    "nyc": "^12.0.2",
+    "source-map-support": "^0.5.6",
+    "ts-node": "^7.0.0"
   }
 }

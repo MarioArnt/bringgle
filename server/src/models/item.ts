@@ -3,7 +3,7 @@ import { UserModel, UserDTO } from "./user"
 
 export type ItemModel = Mongoose.Document & {
   name: string,
-  quantity: string,
+  quantity: number,
   author: UserModel,
   responsible: Map<string, UserModel>,
   created: Date
@@ -12,7 +12,7 @@ export type ItemModel = Mongoose.Document & {
 export type ItemDTO = {
   id: string,
   name: string,
-  quantity: string,
+  quantity: number,
   author: UserDTO,
   responsible: any,
   created: Date

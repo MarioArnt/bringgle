@@ -7,7 +7,7 @@ import cors from 'cors'
 // import morgan from 'morgan'
 import SocketsUtils from './sockets'
 import Router from './api'
-import config from '../config.json'
+import Config, { DatabaseConfig } from '../config'
 import logger from './logger'
 
 export class BringgleServer {
@@ -51,7 +51,8 @@ export class BringgleServer {
 
   private connectDatabase(): void {
     logger.info('Connecting database')
-    const dbConfig = config.database[this.env]
+    logger.debug(JSON.stringify(Config))
+    const dbConfig: DatabaseConfig = Config.database[this.env]
     logger.debug(JSON.stringify(dbConfig))
     mongoose.connect(`mongodb://${dbConfig.host}:${dbConfig.port}/${dbConfig.name}`, { useNewUrlParser: true }).then(
       () => { logger.info('Database Connection Succeeded') },

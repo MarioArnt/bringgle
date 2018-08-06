@@ -10,7 +10,7 @@ import ItemsController from './items'
 import Actions from '../constants/actions'
 import { Document } from 'mongoose'
 
-interface CreateJoinResponse {
+export interface CreateJoinResponse {
   listId: string;
   user: UserDTO;
 }
@@ -55,21 +55,21 @@ export default class ListsController {
     if (err) return res.status(err.status || 500).json(err)
     if (!userId) {
       ListsController.createUserAndList(listName, userName, userEmail).then((createdList) => {
-        return res.status(200).json(createdList)
+        return res.json(createdList)
       }, (err) => {
         return res.status(err.status || 500).json(err)
       })
     } else {
       UsersController.findById(userId).then((user: UserModel) => {
         ListsController.createListRequest(listName, user).then((createdList) => {
-          return res.status(200).json(createdList)
+          return res.json(createdList)
         }, (err) => {
           return res.status(err.status || 500).json(err)
         })
       }, (err) => {
         if (err.code === Errors.code.RESOURCE_NOT_FOUND) {
           ListsController.createUserAndList(listName, userName, userEmail).then((createdList) => {
-            return res.status(200).json(createdList)
+            return res.json(createdList)
           }, (err) => {
             return res.status(err.status || 500).json(err)
           })
@@ -116,7 +116,7 @@ export default class ListsController {
         return res.status(200).json(data)
       }).catch((err) => { return res.status(err.status || 500).send(err) })
     } else {
-      UsersController.findById(req.body.userId).then((user) => {
+      UsersController.findById(req.body.id).then((user) => {
         this.addAttendeeToList(listId, <UserModel>user).then((data) => {
           this.socketsUtils.joinList(data.listId, data.user)
           return res.status(200).json(data)
@@ -225,7 +225,7 @@ export default class ListsController {
 
     this.addItemRequest(req.params.id, req.body.author, req.body.quantity, req.body.name).then((item) => {
       this.socketsUtils.itemAdded(listId, ItemsController.itemBuilder(item))
-      return res.status(200).send(item)
+      return res.status(200).send(ItemsController.itemBuilder(item))
     }, (err) => { return res.status(err.status || 500).send(err) })
   }
 
@@ -312,34 +312,16 @@ export default class ListsController {
   private bringItem = async (item: ItemModel, sub: number, user: UserModel): Promise<ItemDTO> => {
     const err: ErrorModel = ListsController.checkRequired('sub-item', sub)
     if (err) return Promise.reject(err)
-    logger.debug('Inserting responsible at position ' + sub)
-    logger.debug('Responsible map type ' + typeof item.responsible)
-    logger.debug('Responsible map size ' + item.responsible.size)
-    logger.debug('Responsible map content ' + JSON.stringify(item.responsible))
-    logger.debug('Responsible map keys ' + JSON.stringify(item.responsible.keys()))
-    logger.debug('Responsible map values ' + JSON.stringify(item.responsible.values()))
-    logger.debug('Responsible map content at position ' + sub + ':' + item.responsible.get(sub.toString()))
-    if (item.responsible.get(sub.toString())) return Promise.reject(Errors.itemAlreadyBrought(item))
-    logger.debug('Item not already brought')
-    try {
-      logger.debug('Trying to set ' + user._id + ' at pos ' + sub)
-      item.responsible.set(sub.toString(), user)
-    } catch(e) {
-      logger.error('failure', e)
-
-      throw e
-    }
-    logger.debug('sucess. Saving item....')
+    if (item.responsible.get(sub.toString())) return Promise.reject(Errors.itemAlreadyBrought(item._id))
+    item.responsible.set(sub.toString(), user)
     const savedItem = <ItemDTO>await ItemsController.save(item, true).catch((err) => Promise.reject(err))
-    logger.debug('done')
     return savedItem
   }
 
   private clearItem = async (item: ItemModel, sub: number): Promise<ItemDTO> => {
     const err = ListsController.checkRequired('sub-item', sub)
     if (err) return Promise.reject(err)
-    if (err) return Promise.reject(err)
-    if (!item.responsible.get(sub.toString())) return Promise.reject(Errors.itemAlreadyCleared(item))
+    if (!item.responsible.get(sub.toString())) return Promise.reject(Errors.itemAlreadyCleared(item._id))
     item.responsible.delete(sub.toString())
     const savedItem = <ItemDTO>await ItemsController.save(item, true).catch((err) => Promise.reject(err))
     return savedItem
