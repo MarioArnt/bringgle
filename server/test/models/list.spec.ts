@@ -1,5 +1,6 @@
-const expect = require('chai').expect
-const List = require('../../src/models/list')
+import { expect } from 'chai';
+import 'mocha';
+import List from '../../src/models/list'
 
 describe('List Model', function () {
   it('should be invalid if title is empty', (done) => {

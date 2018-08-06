@@ -1,5 +1,6 @@
-const expect = require('chai').expect
-const User = require('../../src/models/user')
+import { expect } from 'chai';
+import 'mocha';
+import User from '../../src/models/user'
 
 describe('User Model', function () {
   it('should be invalid if name is empty', (done) => {

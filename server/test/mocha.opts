@@ -1,0 +1,6 @@
+--timeout 15000
+--recursive
+--require ts-node/register
+--require source-map-support/register
+test/**/*spec.ts
+--exit
