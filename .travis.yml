@@ -11,7 +11,7 @@ before_install:
   - cd ./server
 
 install:
-  - yarn global install typescript mocha nyc
+  - yarn global add typescript mocha nyc
   - yarn install
 
 script:
