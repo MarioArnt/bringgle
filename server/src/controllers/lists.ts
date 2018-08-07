@@ -9,6 +9,7 @@ import UsersController from './users'
 import ItemsController from './items'
 import Actions from '../constants/actions'
 import { Document } from 'mongoose'
+import MailsController from '../mails';
 
 export interface CreateJoinResponse {
   listId: string;
@@ -55,6 +56,7 @@ export default class ListsController {
     if (err) return res.status(err.status || 500).json(err)
     if (!userId) {
       ListsController.createUserAndList(listName, userName, userEmail).then((createdList) => {
+        MailsController.sendListCreated(createdList.listId, createdList.user)
         return res.json(createdList)
       }, (err) => {
         return res.status(err.status || 500).json(err)
@@ -62,6 +64,7 @@ export default class ListsController {
     } else {
       UsersController.findById(userId).then((user: UserModel) => {
         ListsController.createListRequest(listName, user).then((createdList) => {
+          MailsController.sendListCreated(createdList.listId, createdList.user)
           return res.json(createdList)
         }, (err) => {
           return res.status(err.status || 500).json(err)
@@ -69,6 +72,7 @@ export default class ListsController {
       }, (err) => {
         if (err.code === Errors.code.RESOURCE_NOT_FOUND) {
           ListsController.createUserAndList(listName, userName, userEmail).then((createdList) => {
+            MailsController.sendListCreated(createdList.listId, createdList.user)
             return res.json(createdList)
           }, (err) => {
             return res.status(err.status || 500).json(err)

@@ -1,4 +1,5 @@
 export default class Config {
+  public static readonly baseURI: string = 'http://localhost:8080/'
   public static readonly database: DatabasesConfig = {
     development: {
       host: 'localhost',
@@ -16,6 +17,13 @@ export default class Config {
       name: 'bringgle-test'
     }
   }
+  public static readonly email: EmailConfig = {
+    from: 'no-reply@bringgle.io'
+  }
+}
+
+interface EmailConfig {
+  from: string;
 }
 
 export interface DatabaseConfig {
