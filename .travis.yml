@@ -1,0 +1,19 @@
+language: node_js
+node_js:
+  - "node"
+
+cache:
+  directories:
+    - server/node_modules
+    - client/node_modules
+
+before_install:
+  - cd ./server
+
+install:
+  - yarn global install typescript mocha nyc
+  - yarn install
+
+script:
+  - yarn test
+  
