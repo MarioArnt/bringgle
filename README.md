@@ -1,30 +1,49 @@
-# vue-cli
+# Bringgle
 
-> A Vue.js project
+> Real-time collaborative check-lists.
 
-## Build Setup
+As a User create a list and invite friends to attend.
+Add item to the list, flag them if you can bring it.
+Every change is broadcast real-time to all attendees through websocket.
+In the end, you ask for a sum-up of all items you say can bring.
 
-``` bash
-# install dependencies
-npm install
+Project due-date: August 2018
 
-# serve with hot reload at localhost:8080
-npm run dev
+Taiga board: https://tree.taiga.io/project/marioarnt-bringgle/taskboard/first-deployment-1
 
-# build for production with minification
-npm run build
+## Development setup
 
-# build for production and view the bundle analyzer report
-npm run build --report
+First of all, install yarn.
+On ubuntu/debian:
+````bash
+curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | sudo apt-key add -
+echo "deb https://dl.yarnpkg.com/debian/ stable main" | sudo tee /etc/apt/sources.list.d/yarn.list
+sudo apt-get update && sudo apt-get install yarn
+````
 
-# run unit tests
-npm run unit
+Then install globally some npm packages:
 
-# run e2e tests
-npm run e2e
+````bash
+yarn global add typescript ts-lint mocha nyc
+````
 
-# run all tests
-npm test
-```
+Clone the project. Install project dependencies:
 
-For a detailed explanation on how things work, check out the [guide](http://vuejs-templates.github.io/webpack/) and [docs for vue-loader](http://vuejs.github.io/vue-loader).
+````bash
+yarn install
+````
+
+Run the app
+
+````bash
+#front-end (provides hot-reload)
+yarn dev
+
+#back-end
+cd server
+yarn start
+
+#Run test suite (with code coverage)
+cd server
+yarn test
+````

@@ -1,4 +1,4 @@
-import { BringgleServer } from './server';
+import {BringgleServer} from './server';
 
-let app = new BringgleServer().getApp();
-export { app };
+const app = new BringgleServer().getApp();
+export {app};
