@@ -5,6 +5,7 @@
   "main": "src/index.js",
   "scripts": {
     "test": "nyc mocha",
+    "lint": "tslint -c tslint.json 'src/**/*.ts'",
     "build": "tsc",
     "serve": "cross-env DEBUG=email-templatesnode dist/src/index.js",
     "start": "tsc && cross-env DEBUG=email-templates node dist/src/index.js"

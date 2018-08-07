@@ -1,3 +1,7 @@
 {
-	"extends": "tslint-xo"
+	"extends": "tslint-xo",
+	"rules": {
+		"no-unnecessary-class": ["allow-static-only"],
+		"ban-comma-operator": false
+	}
 }
