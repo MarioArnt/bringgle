@@ -24,7 +24,7 @@ sudo apt-get update && sudo apt-get install yarn
 Then install globally some npm packages:
 
 ````bash
-yarn global add typescript ts-lint mocha nyc
+yarn global add typescript tslint mocha nyc
 ````
 
 Clone the project. Install project dependencies:

@@ -1,7 +1,8 @@
 <template lang="pug">
   md-toolbar.md-primary(md-elevation="2")
     h3.md-title(style="flex: 1")
-      router-link(to="/") Bringgle
+      router-link(to="/")
+        img#logo(src="../assets/logo-alt.svg" alt="Bringgle" height="60") 
     md-menu(md-direction="bottom-end" v-show="user && user.name")
       md-button(md-menu-trigger)
         i.fa.fa-user
@@ -42,5 +43,8 @@ export default {
 <style scoped>
   a, .md-theme-default a:not(.md-button) {
     color: white;
+  }
+  #logo {
+    height: 40px;
   }
 </style>
