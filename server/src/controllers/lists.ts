@@ -494,7 +494,7 @@ export default class ListsController {
 		ListsController.findById(req.params.id).then((list: ListModelLazy) => {
 			UsersController.findById(req.body.userId).then((user: UserModel) => {
 				MailsController.invite(list, req.body.email, user).then(() => {
-					return res.send(200).send(req.body.email);
+					return res.status(200).send(req.body.email);
 					}, errSend => {
 					return res.status(errSend.status).send(errSend);
 					});
