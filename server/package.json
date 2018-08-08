@@ -7,8 +7,8 @@
     "test": "nyc mocha",
     "lint": "tslint -c tslint.json 'src/**/*.ts'",
     "build": "tsc",
-    "serve": "cross-env DEBUG=email-templatesnode dist/src/index.js",
-    "start": "tsc && cross-env DEBUG=email-templates node dist/src/index.js"
+    "serve": "node dist/src/index.js",
+    "start": "yarn build && yarn serve"
   },
   "nyc": {
     "include": [

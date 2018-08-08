@@ -1,5 +1,8 @@
-h1 Bringgle
-
-p Hi #{username}, thank you for creating the list #{listname} with bringgle.
-p You can share the following link to your friends to invite them :
-a(href=link) #{link}
+head
+  link(rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700,400italic|Material+Icons")
+  link(rel="stylesheet" href="https://code.getmdl.io/1.3.0/material.deep_purple-yellow.min.css")
+body(style="padding:0 10%;")
+  img(style="width:280px;margin:20px 0 20px -13px;" src="https://raw.githubusercontent.com/MarioArnt/bringgle/master/client/src/assets/logo.png")
+  p Hi #{username}, thank you for creating the list #{listname} with bringgle.
+  p You can share the following link to your friends to invite them :
+  a(href=link style="color:#673ab7;") #{link}

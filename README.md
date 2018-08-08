@@ -1,4 +1,4 @@
-# Bringgle
+![Bringgle](https://raw.githubusercontent.com/MarioArnt/bringgle/master/client/src/assets/logo.png)
 
 > Real-time collaborative check-lists.
 

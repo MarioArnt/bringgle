@@ -1,7 +1,9 @@
 import Email from 'email-templates';
-import {UserDTO} from './models/user';
+import {UserDTO, UserModel} from './models/user';
 import Config from '../config';
 import logger from './logger';
+import Errors, {ErrorModel} from './constants/errors';
+import {ListModelLazy} from './models/list';
 
 export default class MailsController {
 	private static readonly emailOptions = new Email({
@@ -13,7 +15,7 @@ export default class MailsController {
 			jsonTransport: true
 		}
 	});
-	public static sendListCreated = (listId: string, user: UserDTO) => {
+	public static sendListCreated = (listId: string, listName: string, user: UserDTO) => {
 		logger.info(`Preparing to sending email to ${user.email}.`);
 		MailsController.emailOptions
 		.send({
@@ -23,16 +25,36 @@ export default class MailsController {
 			},
 			locals: {
 				username: user.name,
-				link: `${Config.protocole}://${Config.baseURI}/lists/${listId}`
+				listname: listName,
+				link: `${Config.protocole}://${Config.baseURI}/#/list/${listId}`
 			}
 		})
-		.then((mail: any) => {
+		.then(() => {
 			logger.info('Email sucessfully sent');
-			logger.debug(mail);
+		})
+		.catch(() => {
+			logger.error('Error sending mail');
+		});
+	};
+	public static invite = async (list: ListModelLazy, email: string, from: UserModel): Promise<void> => {
+		MailsController.emailOptions
+		.send({
+			template: 'invite',
+			message: {
+				to: email
+			},
+			locals: {
+				username: from.name,
+				listname: list.title,
+				link: `${Config.protocole}://${Config.baseURI}/#/list/${list._id}`
+			}
+		})
+		.then(() => {
+			return Promise.resolve();
 		})
 		.catch((err: any) => {
-			logger.error(JSON.stringify(err));
-			logger.error('Error sending mail');
+			const formattedError: ErrorModel = Errors.emailNotSent(err);
+			return Promise.reject(formattedError);
 		});
 	};
 }

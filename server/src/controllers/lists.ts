@@ -13,6 +13,7 @@ import MailsController from '../mails';
 
 export interface CreateJoinResponse {
 	listId: string;
+	listName: string;
 	user: UserDTO;
 }
 
@@ -68,7 +69,7 @@ export default class ListsController {
 		}
 		if (!userId) {
 			ListsController.createUserAndList(listName, userName, userEmail).then(createdList => {
-				MailsController.sendListCreated(createdList.listId, createdList.user);
+				MailsController.sendListCreated(createdList.listId, createdList.listName, createdList.user);
 				return res.json(createdList);
 			}, errCreation => {
 				return res.status(errCreation.status || 500).json(errCreation);
@@ -76,7 +77,7 @@ export default class ListsController {
 		} else {
 			UsersController.findById(userId).then((user: UserModel) => {
 				ListsController.createListRequest(listName, user).then(createdList => {
-					MailsController.sendListCreated(createdList.listId, createdList.user);
+					MailsController.sendListCreated(createdList.listId, createdList.listName, createdList.user);
 					return res.json(createdList);
 				}, errCreation => {
 					return res.status(errCreation.status || 500).json(errCreation);
@@ -84,7 +85,7 @@ export default class ListsController {
 			}, errFindUser => {
 				if (errFindUser.code === Errors.code.RESOURCE_NOT_FOUND) {
 					ListsController.createUserAndList(listName, userName, userEmail).then(createdList => {
-						MailsController.sendListCreated(createdList.listId, createdList.user);
+						MailsController.sendListCreated(createdList.listId, createdList.listName, createdList.user);
 						return res.json(createdList);
 					}, errCreation => {
 						return res.status(errCreation.status || 500).json(errCreation);
@@ -122,6 +123,7 @@ export default class ListsController {
 		const savedList: ListModelLazy = await ListsController.save(list).catch(err => Promise.reject(err));
 		return {
 			listId: savedList._id,
+			listName: savedList.title,
 			user: UsersController.userBuilder(owner)
 		};
 	};
@@ -194,6 +196,7 @@ export default class ListsController {
 		});
 		return {
 			listId: savedList._id,
+			listName: savedList.title,
 			user: UsersController.userBuilder(user)
 		};
 	};
@@ -474,6 +477,32 @@ export default class ListsController {
 				}
 				resolve(savedList);
 			});
+		});
+	};
+
+	public static invite = (req: Request, res: Response): Response => {
+		let err = ListsController.checkId(ListsController.uncastFalsyRequestParamter(req.params.id), 'list');
+		if (!err) {
+			ListsController.checkRequired(req.body.email, 'email');
+		}
+		if (!err) {
+			err = ListsController.checkId(req.body.userId, 'user');
+		}
+		if (err) {
+			return res.status(err.status).send(err);
+		}
+		ListsController.findById(req.params.id).then((list: ListModelLazy) => {
+			UsersController.findById(req.body.userId).then((user: UserModel) => {
+				MailsController.invite(list, req.body.email, user).then(() => {
+					return res.send(200).send(req.body.email);
+					}, errSend => {
+					return res.status(errSend.status).send(errSend);
+					});
+				}, errUser => {
+					return res.status(errUser.status).send(errUser);
+				});
+			}, errList => {
+				return res.status(errList.status).send(errList);
 		});
 	};
 }

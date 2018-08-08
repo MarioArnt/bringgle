@@ -19,6 +19,7 @@ export default class Router {
 		this.router.post('/api/lists/:id/items', this.listsController.addItem);
 		this.router.patch('/api/lists/:listId/items/:itemId', this.listsController.updateItem);
 		this.router.delete('/api/lists/:listId/items/:itemId', this.listsController.removeItem);
+		this.router.post('/api/lists/:id/invite', ListsController.invite);
 	}
 	public getRouter(): Express.Router {
 		return this.router;

@@ -23,7 +23,8 @@ export default class Errors {
 		USER_ALREADY_IN_LIST: 'E08',
 		INVALID_ACTION: 'E09',
 		ITEM_ALREADY_BROUGHT: 'E10',
-		ITEM_ALREADY_CLEARED: 'E11'
+		ITEM_ALREADY_CLEARED: 'E11',
+		EMAIL_NOT_SENT: 'E12'
 	};
 
 	public static databaseAccess = (details: any): ErrorModel => {
@@ -128,6 +129,15 @@ export default class Errors {
 			status: 400,
 			msg: 'Item Already Cleared',
 			details: itemId
+		};
+	};
+
+	public static emailNotSent = (details: any): ErrorModel => {
+		return {
+			code: Errors.code.EMAIL_NOT_SENT,
+			status: 500,
+			msg: 'Server failed to send email',
+			details
 		};
 	};
 }
