@@ -497,18 +497,64 @@ describe('List Controller', () => {
           res.body.should.be.eql(error)
           done()
         })
-    })
+		})
+		it('should return 400 if user ID not given and email already taken', (done) => {
+			const list = testFactory.getRandomList();
+			UsersController.findById(list.owner).then((owner: UserModel) => {
+				const joinData: any = {
+					name: 'Whatever',
+					email: owner.email
+				};
+				Sinon.spy(MailsController,'recoverSession');
+				const expectedError = errors.emailAlreadyTaken(owner.email);
+				requester
+        .post(`/api/lists/${list._id}/join`)
+        .send(joinData)
+        .end((err: any, res: ChaiHttp.Response) => {
+					(MailsController.recoverSession as Sinon.SinonSpy).callCount.should.be.eql(1);
+					(MailsController.recoverSession as Sinon.SinonSpy).restore();
+          res.should.have.status(expectedError.status);
+          res.body.should.be.eql(expectedError);
+          done();
+        });
+			}, err => console.log(err));
+		});
+		it('should return 400 if user ID given but not found in database and email already taken', (done) => {
+			const list = testFactory.getRandomList();
+			UsersController.findById(list.owner).then((owner: UserModel) => {
+				const joinData: any = {
+					id: '5b5ad5d1bae6215a38720547',
+					name: 'Whatever',
+					email: owner.email
+				};
+				const expectedError = errors.emailAlreadyTaken(owner.email);
+				Sinon.spy(MailsController,'recoverSession');
+				requester
+        .post(`/api/lists/${list._id}/join`)
+        .send(joinData)
+        .end((err: any, res: ChaiHttp.Response) => {
+					(MailsController.recoverSession as Sinon.SinonSpy).callCount.should.be.eql(1);
+					(MailsController.recoverSession as Sinon.SinonSpy).restore();
+          res.should.have.status(expectedError.status);
+          res.body.should.be.eql(expectedError);
+          done();
+        });
+			});
+		});
     it('should return 200 and join list with current user if user id is given', (done) => {
       const list: ListModelLazy = testFactory.getRandomList()
       let user: UserModel = testFactory.getRandomNotAttendee(list)
       const joinData: any = {
         id: user._id
 			}
+			Sinon.spy(MailsController,'joinedList');
 			Sinon.spy(socketsUtils, 'joinList');
       requester
         .post(`/api/lists/${list._id}/join`)
         .send(joinData)
         .end((err: any, res: ChaiHttp.Response) => {
+					(MailsController.joinedList as Sinon.SinonSpy).callCount.should.be.eql(1);
+					(MailsController.joinedList as Sinon.SinonSpy).restore();
 					(socketsUtils.joinList as Sinon.SinonSpy).callCount.should.be.eql(1);
 					(socketsUtils.joinList as Sinon.SinonSpy).calledWith(list._id, UsersController.userBuilder(user)).should.be.eql(true);
 					(socketsUtils.joinList as Sinon.SinonSpy).restore();
@@ -528,11 +574,14 @@ describe('List Controller', () => {
         name: 'John',
         email: 'john@doe.com'
 			}
+			Sinon.spy(MailsController,'joinedList');
 			Sinon.spy(socketsUtils, 'joinList');
       requester
         .post(`/api/lists/${list._id}/join`)
         .send(joinData)
         .end((err: any, res: ChaiHttp.Response) => {
+					(MailsController.joinedList as Sinon.SinonSpy).callCount.should.be.eql(1);
+					(MailsController.joinedList as Sinon.SinonSpy).restore();
 					(socketsUtils.joinList as Sinon.SinonSpy).callCount.should.be.eql(1);
 					(socketsUtils.joinList as Sinon.SinonSpy).restore();
           res.should.have.status(200)
@@ -551,11 +600,14 @@ describe('List Controller', () => {
         name: 'John',
         email: 'john@doe.com'
 			}
+			Sinon.spy(MailsController,'joinedList');
 			Sinon.spy(socketsUtils, 'joinList');
       requester
         .post(`/api/lists/${list._id}/join`)
         .send(joinData)
         .end((err: any, res: ChaiHttp.Response) => {
+					(MailsController.joinedList as Sinon.SinonSpy).callCount.should.be.eql(1);
+					(MailsController.joinedList as Sinon.SinonSpy).restore();
 					(socketsUtils.joinList as Sinon.SinonSpy).callCount.should.be.eql(1);
 					(socketsUtils.joinList as Sinon.SinonSpy).restore();
           res.should.have.status(200)
@@ -1765,7 +1817,7 @@ describe('List Controller', () => {
       requester
         .delete(`/api/lists/${list._id}/items/${itemId}?userId=${userId}`)
         .end((err: any, res: ChaiHttp.Response) => {
-					//(socketsUtils.itemRemoved as Sinon.SinonSpy).callCount.should.be.eql(1);
+					(socketsUtils.itemRemoved as Sinon.SinonSpy).callCount.should.be.eql(1);
 				  //(socketsUtils.itemRemoved as Sinon.SinonSpy).calledWith(list._id, itemId).should.be.eql(true);
 					(socketsUtils.itemRemoved as Sinon.SinonSpy).restore();
           res.should.have.status(200)

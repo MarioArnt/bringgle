@@ -34,6 +34,49 @@ export default class MailsController {
 			logger.error('Error sending mail');
 		});
 	};
+	public static joinedList = async (listId: string, listName: string, userEmail: string, userName: string): Promise<void> => {
+		logger.info(`Preparing to sending email to ${userEmail}.`);
+		MailsController.emailOptions
+		.send({
+			template: 'join',
+			message: {
+				to: userEmail
+			},
+			locals: {
+				username: userName,
+				listname: listName,
+				link: `${Config.protocole}://${Config.baseURI}/#/list/${listId}`
+			}
+		})
+		.then(() => {
+			logger.info('Email sucessfully sent');
+		})
+		.catch(() => {
+			logger.error('Error sending mail');
+		});
+	};
+
+	public static recoverSession = async (listId: string, listName: string, userId: string, userName: string, userEmail: string) => {
+		MailsController.emailOptions
+		.send({
+			template: 'recover',
+			message: {
+				to: userEmail
+			},
+			locals: {
+				username: userName,
+				listname: listName,
+				link: `${Config.protocole}://${Config.baseURI}/#/list/${listId}/recovery?userId=${userId}`
+			}
+		})
+		.then(() => {
+			return Promise.resolve();
+		})
+		.catch((err: any) => {
+			const formattedError: ErrorModel = Errors.emailNotSent(err);
+			return Promise.reject(formattedError);
+		});
+	};
 	public static invite = async (listId: string, listName: string, email: string, invitedBy: string): Promise<void> => {
 		MailsController.emailOptions
 		.send({

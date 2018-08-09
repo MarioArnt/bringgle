@@ -66,6 +66,21 @@ export default class ListsController {
 		return null;
 	};
 
+	private static checkMailNotAlreadyTaken = async (listId: string, userEmail: string): Promise<ErrorModel> => {
+		return new Promise<ErrorModel>((resolve, reject) => {
+			ListsController.findById(listId, true).then((list: ListModelEager) => {
+				if (list.attendees.some(att => att.email === userEmail)) {
+					const user: UserModel = list.attendees.find(att => att.email === userEmail);
+					MailsController.recoverSession(list._id, list.title, user._id, user.name, userEmail);
+					return resolve(Errors.emailAlreadyTaken(userEmail));
+				}
+				return resolve(null);
+			}, err => {
+				return reject(err);
+			});
+		});
+	};
+
 	public static createList = (req: Request, res: Response): Response => {
 		const listName = req.body.title;
 		const userName = req.body.owner ? req.body.owner.name : null;
@@ -148,6 +163,7 @@ export default class ListsController {
 		if (!userId) {
 			this.createUserAndJoinListRequest(listId, userName, userEmail).then(data => {
 				this.socketsUtils.joinList(data.listId, data.user);
+				MailsController.joinedList(data.listId, data.listName, data.user.email, data.user.name);
 				return res.status(200).json(data);
 			}).catch(errJoin => {
 				return res.status(errJoin.status || 500).send(errJoin);
@@ -156,6 +172,7 @@ export default class ListsController {
 			UsersController.findById(req.body.id).then(user => {
 				this.addAttendeeToList(listId, user as UserModel).then(data => {
 					this.socketsUtils.joinList(data.listId, data.user);
+					MailsController.joinedList(data.listId, data.listName, data.user.email, data.user.name);
 					return res.status(200).json(data);
 				}).catch(errJoin => {
 					return res.status(errJoin.status || 500).send(errJoin);
@@ -164,6 +181,7 @@ export default class ListsController {
 				if (errFind.code === Errors.code.RESOURCE_NOT_FOUND) {
 					this.createUserAndJoinListRequest(listId, userName, userEmail).then(data => {
 						this.socketsUtils.joinList(data.listId, data.user);
+						MailsController.joinedList(data.listId, data.listName, data.user.email, data.user.name);
 						return res.status(200).json(data);
 					}).catch(errJoin => {
 						return res.status(errJoin.status || 500).send(errJoin);
@@ -177,21 +195,31 @@ export default class ListsController {
 	};
 
 	private createUserAndJoinListRequest = async (listId: string, userName: string, userEmail: string): Promise<CreateJoinResponse> => {
-		let err: ErrorModel = ListsController.checkRequired('displayName', userName);
-		if (!err) {
-			err = ListsController.checkRequired('userEmail', userEmail);
-		}
-		if (err) {
-			return Promise.reject(err);
-		}
-		const attendee = new User({
-			name: userName,
-			email: userEmail
+		return new Promise<CreateJoinResponse>((resolve, reject) => {
+			let err: ErrorModel = ListsController.checkRequired('displayName', userName);
+			if (!err) {
+				err = ListsController.checkRequired('userEmail', userEmail);
+			}
+			if (err) {
+				return reject(err);
+			}
+			ListsController.checkMailNotAlreadyTaken(listId, userEmail).then((emailAlreadyTaken: ErrorModel) => {
+				if (emailAlreadyTaken) {
+					return reject(emailAlreadyTaken);
+				}
+				const attendee = new User({
+					name: userName,
+					email: userEmail
+				});
+				UsersController.save(attendee).then((user: UserModel) => {
+					return resolve(this.addAttendeeToList(listId, user));
+				}, errSave => {
+					return reject(errSave);
+				});
+			}, errAnalyse => {
+				return reject(errAnalyse);
+			});
 		});
-		const user = await UsersController.save(attendee).catch(errSave => {
-			return Promise.reject(errSave);
-		}) as UserModel;
-		return this.addAttendeeToList(listId, user);
 	};
 
 	private addAttendeeToList = async (listId: string, user: UserModel): Promise<CreateJoinResponse> => {

@@ -25,7 +25,8 @@ export default class Errors {
 		ITEM_ALREADY_BROUGHT: 'E10',
 		ITEM_ALREADY_CLEARED: 'E11',
 		EMAIL_NOT_SENT: 'E12',
-		INVALID_EMAIL_ADDRESS: 'E13'
+		INVALID_EMAIL_ADDRESS: 'E13',
+		EMAIL_ALREADY_TAKEN: 'E14'
 	};
 
 	public static databaseAccess = (details: any): ErrorModel => {
@@ -147,6 +148,15 @@ export default class Errors {
 			code: Errors.code.INVALID_EMAIL_ADDRESS,
 			status: 400,
 			msg: 'Invalid email address',
+			details: {email}
+		};
+	};
+
+	public static emailAlreadyTaken = (email: string): ErrorModel => {
+		return {
+			code: Errors.code.EMAIL_ALREADY_TAKEN,
+			status: 400,
+			msg: 'Email already taken',
 			details: {email}
 		};
 	};
