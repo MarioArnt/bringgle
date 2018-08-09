@@ -5,18 +5,20 @@ import express from'express'
 import { BringgleServer } from '../../src/server'
 import errors, { ErrorModel } from '../../src/constants/errors'
 import actions from '../../src/constants/actions'
-import { ListModelLazy } from '../../src/models/list'
-import { UserModel } from '../../src/models/user'
+import List, { ListModelLazy } from '../../src/models/list'
+import User, { UserModel } from '../../src/models/user'
 import ListItem, { ItemModel } from '../../src/models/item'
 import TestFactory from '../factory'
 import Sinon from 'sinon'
 import 'mocha'
 import MailsController from '../../src/mails';
-import ListsController from '../../src/controllers/lists';
 import UsersController from '../../src/controllers/users';
+import SocketsUtils from '../../src/sockets';
+import ItemsController from '../../src/controllers/items';
 
 const server: BringgleServer = new BringgleServer()
 const app: express.Application = server.getApp()
+const socketsUtils: SocketsUtils = server.getSocketsUtils();
 
 chai.use(chaiHttp)
 
@@ -149,11 +151,13 @@ describe('List Controller', () => {
         owner: {
           id: user._id
         }
-      }
+			}
+			Sinon.spy(MailsController, 'sendListCreated');
       requester
         .post('/api/lists')
         .send(listData)
         .end((err: any, res: ChaiHttp.Response) => {
+					(MailsController.sendListCreated as Sinon.SinonSpy).callCount.should.be.eql(1);
           if (err) console.log(err)
           res.should.have.status(200)
           if(!res.body) res.body = JSON.parse(res.text)
@@ -228,9 +232,75 @@ describe('List Controller', () => {
           done()
         })
     })
-    it.skip('should return 500 if database operation save user fails')
-    it.skip('should return 500 if database operation find user fails')
-    it.skip('should return 500 if database operation save list fails')
+    it('should return 500 if database operation save user fails', (done) => {
+      const listData: any = {
+        title: 'Awesome List',
+        owner: {
+          id: '5b5ad5d1bae6215a38720546',
+          name: 'John',
+          email: 'john@doe.com'
+        }
+			}
+			Sinon.stub(User.prototype, 'save');
+			const errorDB = {type: 'MongoDB', msg: 'Mocked database failure'};
+			(User.prototype.save as Sinon.SinonStub).yields(errorDB, null);
+			const expectedError = errors.databaseAccess(errorDB);
+      requester
+        .post('/api/lists')
+        .send(listData)
+        .end((err: any, res: ChaiHttp.Response) => {
+					(User.prototype.save as Sinon.SinonStub).restore();
+          res.should.have.status(expectedError.status);
+					res.body.should.be.eql(expectedError);
+          done()
+        })
+    })
+    it('should return 500 if database operation find user fails', (done) => {
+      const listData: any = {
+        title: 'Awesome List',
+        owner: {
+          id: '5b5ad5d1bae6215a38720546',
+          name: 'John',
+          email: 'john@doe.com'
+        }
+			}
+			Sinon.stub(User, 'findById');
+			const errorDB = {type: 'MongoDB', msg: 'Mocked database failure'};
+			(User.findById as Sinon.SinonStub).yields(errorDB, null);
+			const expectedError = errors.databaseAccess(errorDB);
+      requester
+        .post('/api/lists')
+        .send(listData)
+        .end((err: any, res: ChaiHttp.Response) => {
+					(User.findById as Sinon.SinonStub).restore();
+          res.should.have.status(expectedError.status);
+					res.body.should.be.eql(expectedError);
+          done()
+        })
+    });
+    it('should return 500 if database operation save list fails', (done) => {
+      const listData: any = {
+        title: 'Awesome List',
+        owner: {
+          id: '5b5ad5d1bae6215a38720546',
+          name: 'John',
+          email: 'john@doe.com'
+        }
+			}
+			Sinon.stub(List.prototype, 'save');
+			const errorDB = {type: 'MongoDB', msg: 'Mocked database failure'};
+			(List.prototype.save as Sinon.SinonStub).yields(errorDB, null);
+			const expectedError = errors.databaseAccess(errorDB);
+      requester
+        .post('/api/lists')
+        .send(listData)
+        .end((err: any, res: ChaiHttp.Response) => {
+					(List.prototype.save as Sinon.SinonStub).restore();
+          res.should.have.status(expectedError.status);
+					res.body.should.be.eql(expectedError);
+          done()
+        })
+    });
   })
   describe('GET /api/lists/:id', () => {
     let testFactory: TestFactory;
@@ -269,7 +339,21 @@ describe('List Controller', () => {
           done()
         })
     })
-    it.skip('should return 500 if find list by ID query fails')
+    it('should return 500 if find list by ID query fails', (done) => {
+			Sinon.stub(List, 'findById');
+			const errorDB = {type: 'MongoDB', msg: 'Mocked database failure'};
+			const expectedError = errors.databaseAccess(errorDB);
+			(List.findById as Sinon.SinonStub).throws(expectedError);
+			const list: ListModelLazy = testFactory.getRandomList()
+      requester
+        .get(`/api/lists/${list._id}?userId=${list.owner}`)
+        .end((err: any, res: ChaiHttp.Response) => {
+					(List.findById as Sinon.SinonStub).restore();
+          res.should.have.status(expectedError.status);
+					res.body.should.be.eql(expectedError);
+          done()
+        });
+    });
     it('should return 404 if list with the given ID does not exist', (done) => {
       const id: string = '5b5c39c618774c33b4b0a010'
       const expectedError: ErrorModel = errors.ressourceNotFound({ type: 'list', id })
@@ -418,17 +502,21 @@ describe('List Controller', () => {
       let user: UserModel = testFactory.getRandomNotAttendee(list)
       const joinData: any = {
         id: user._id
-      }
+			}
+			Sinon.spy(socketsUtils, 'joinList');
       requester
         .post(`/api/lists/${list._id}/join`)
         .send(joinData)
         .end((err: any, res: ChaiHttp.Response) => {
-          res.should.have.status(200)
-          if(!res.body) res.body = JSON.parse(res.text)
-          res.body.listId.should.be.eql(list._id.toString())
-          res.body.user.id.should.be.eql(user._id.toString())
-          res.body.user.name.should.be.eql(user.name)
-          res.body.user.email.should.be.eql(user.email)
+					(socketsUtils.joinList as Sinon.SinonSpy).callCount.should.be.eql(1);
+					(socketsUtils.joinList as Sinon.SinonSpy).calledWith(list._id, UsersController.userBuilder(user)).should.be.eql(true);
+					(socketsUtils.joinList as Sinon.SinonSpy).restore();
+          res.should.have.status(200);
+          if(!res.body) res.body = JSON.parse(res.text);
+          res.body.listId.should.be.eql(list._id.toString());
+          res.body.user.id.should.be.eql(user._id.toString());
+          res.body.user.name.should.be.eql(user.name);
+					res.body.user.email.should.be.eql(user.email);
           done()
         })
     })
@@ -438,11 +526,14 @@ describe('List Controller', () => {
         id: '',
         name: 'John',
         email: 'john@doe.com'
-      }
+			}
+			Sinon.spy(socketsUtils, 'joinList');
       requester
         .post(`/api/lists/${list._id}/join`)
         .send(joinData)
         .end((err: any, res: ChaiHttp.Response) => {
+					(socketsUtils.joinList as Sinon.SinonSpy).callCount.should.be.eql(1);
+					(socketsUtils.joinList as Sinon.SinonSpy).restore();
           res.should.have.status(200)
           if(!res.body) res.body = JSON.parse(res.text)
           res.body.listId.should.be.eql(list._id.toString())
@@ -458,11 +549,14 @@ describe('List Controller', () => {
         id: '5b5ad5d1bae6215a38720547',
         name: 'John',
         email: 'john@doe.com'
-      }
+			}
+			Sinon.spy(socketsUtils, 'joinList');
       requester
         .post(`/api/lists/${list._id}/join`)
         .send(joinData)
         .end((err: any, res: ChaiHttp.Response) => {
+					(socketsUtils.joinList as Sinon.SinonSpy).callCount.should.be.eql(1);
+					(socketsUtils.joinList as Sinon.SinonSpy).restore();
           res.should.have.status(200)
           if(!res.body) res.body = JSON.parse(res.text)
           res.body.listId.should.be.eql(list._id.toString())
@@ -504,10 +598,86 @@ describe('List Controller', () => {
           done()
         })
     })
-    it.skip('should return 500 if database operation save user fails')
-    it.skip('should return 500 if database operation find user fails')
-    it.skip('should return 500 if database operation save list fails')
-    it.skip('should return 500 if database operation find list fails')
+    it.skip('should return 500 if database operation save user fails', (done) => {
+      const list: ListModelLazy = testFactory.getRandomList()
+      let user: UserModel = testFactory.getRandomNotAttendee(list)
+      const joinData: any = {
+        id: user._id
+			}
+			Sinon.stub(User.prototype, 'save');
+			const errorDB = {type: 'MongoDB', msg: 'Mocked database failure'};
+			(User.prototype.save as Sinon.SinonStub).yields(errorDB, null);
+			const expectedError = errors.databaseAccess(errorDB);
+      requester
+        .post(`/api/lists/${list._id}/join`)
+        .send(joinData)
+        .end((err: any, res: ChaiHttp.Response) => {
+					(User.prototype.save as Sinon.SinonStub).restore();
+          res.should.have.status(expectedError.status);
+					res.body.should.be.eql(expectedError);
+          done()
+        })
+    });
+    it('should return 500 if database operation find user fails', (done) => {
+      const list: ListModelLazy = testFactory.getRandomList()
+      let user: UserModel = testFactory.getRandomNotAttendee(list)
+      const joinData: any = {
+        id: user._id
+			}
+			Sinon.stub(User, 'findById');
+			const errorDB = {type: 'MongoDB', msg: 'Mocked database failure'};
+			(User.findById as Sinon.SinonStub).yields(errorDB, null);
+			const expectedError = errors.databaseAccess(errorDB);
+      requester
+        .post(`/api/lists/${list._id}/join`)
+        .send(joinData)
+        .end((err: any, res: ChaiHttp.Response) => {
+					(User.findById as Sinon.SinonStub).restore();
+          res.should.have.status(expectedError.status);
+					res.body.should.be.eql(expectedError);
+          done()
+        })
+    });
+    it('should return 500 if database operation save list fails', (done) => {
+      const list: ListModelLazy = testFactory.getRandomList()
+      let user: UserModel = testFactory.getRandomNotAttendee(list)
+      const joinData: any = {
+        id: user._id
+			}
+			Sinon.stub(List.prototype, 'save');
+			const errorDB = {type: 'MongoDB', msg: 'Mocked database failure'};
+			(List.prototype.save as Sinon.SinonStub).yields(errorDB, null);
+			const expectedError = errors.databaseAccess(errorDB);
+      requester
+        .post(`/api/lists/${list._id}/join`)
+        .send(joinData)
+        .end((err: any, res: ChaiHttp.Response) => {
+					(List.prototype.save as Sinon.SinonStub).restore();
+          res.should.have.status(expectedError.status);
+					res.body.should.be.eql(expectedError);
+          done()
+        })
+    });
+    it('should return 500 if database operation find list fails', (done) => {
+      const list: ListModelLazy = testFactory.getRandomList()
+      let user: UserModel = testFactory.getRandomNotAttendee(list)
+      const joinData: any = {
+        id: user._id
+			}
+			Sinon.stub(List, 'findById');
+			const errorDB = {type: 'MongoDB', msg: 'Mocked database failure'};
+			(List.findById as Sinon.SinonStub).yields(errorDB, null);
+			const expectedError = errors.databaseAccess(errorDB);
+      requester
+        .post(`/api/lists/${list._id}/join`)
+        .send(joinData)
+        .end((err: any, res: ChaiHttp.Response) => {
+					(List.findById as Sinon.SinonStub).restore();
+          res.should.have.status(expectedError.status);
+					res.body.should.be.eql(expectedError);
+          done()
+        })
+    });
   })
   describe('PATCH /api/lists/:id/items/:itemId', () => {
     let testFactory: TestFactory;
@@ -651,9 +821,60 @@ describe('List Controller', () => {
           done()
         })
     })
-    it.skip('should return 500 if find user by id fails')
-    it.skip('should return 500 if find item by id fails')
-    it('should return 500 if find list by id fails')
+    it('should return 500 if find user by id fails', (done) => {
+      const list: ListModelLazy = testFactory.getRandomList();
+      const itemId: string = list.items[0]
+      const data: any = { userId: list.owner, action: 'Whatever' }
+			Sinon.stub(User, 'findById');
+			const errorDB = {type: 'MongoDB', msg: 'Mocked database failure'};
+			(User.findById as Sinon.SinonStub).yields(errorDB, null);
+			const expectedError = errors.databaseAccess(errorDB);
+      requester
+        .patch(`/api/lists/${list._id}/items/${itemId}`)
+        .send(data)
+        .end((err: any, res: ChaiHttp.Response) => {
+					(User.findById as Sinon.SinonStub).restore();
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 500 if find item by id fails', (done) => {
+      const list: ListModelLazy = testFactory.getRandomList();
+      const itemId: string = list.items[0]
+      const data: any = { userId: list.owner, action: 'Whatever' }
+			Sinon.stub(ListItem, 'findById');
+			const errorDB = {type: 'MongoDB', msg: 'Mocked database failure'};
+			(ListItem.findById as Sinon.SinonStub).yields(errorDB, null);
+			const expectedError = errors.databaseAccess(errorDB);
+      requester
+        .patch(`/api/lists/${list._id}/items/${itemId}`)
+        .send(data)
+        .end((err: any, res: ChaiHttp.Response) => {
+					(ListItem.findById as Sinon.SinonStub).restore();
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
+    it('should return 500 if find list by id fails', (done) => {
+      const list: ListModelLazy = testFactory.getRandomList();
+      const itemId: string = list.items[0]
+      const data: any = { userId: list.owner, action: 'Whatever' }
+			Sinon.stub(List, 'findById');
+			const errorDB = {type: 'MongoDB', msg: 'Mocked database failure'};
+			(List.findById as Sinon.SinonStub).yields(errorDB, null);
+			const expectedError = errors.databaseAccess(errorDB);
+			requester
+        .patch(`/api/lists/${list._id}/items/${itemId}`)
+        .send(data)
+        .end((err: any, res: ChaiHttp.Response) => {
+					(List.findById as Sinon.SinonStub).restore();
+          res.should.have.status(expectedError.status)
+          res.body.should.be.eql(expectedError)
+          done()
+        })
+    })
     it('should return 400 if action is invalid', (done) => {
       const list: ListModelLazy = testFactory.getRandomList();
       const itemId: string = list.items[0]
@@ -699,23 +920,48 @@ describe('List Controller', () => {
         })
       })
     })
-    it.skip('should return 500 if action is bring save item fails')
-    it('should return 200 if action is bring and everything OK', (done) => {
+    it.skip('should return 500 if action is bring save item fails', (done) => {
       const list: ListModelLazy = testFactory.getRandomList();
       const itemId: string = list.items[0]
-      const data: any = { userId: list.owner, action: actions.BRING_ITEM.code, sub: 0 }
+			const data: any = { userId: list.owner, action: actions.BRING_ITEM.code, sub: 0 }
+			Sinon.stub(ListItem.prototype, 'save');
+			const errorDB = {type: 'MongoDB', msg: 'Mocked database failure'};
+			(ListItem.prototype.save as Sinon.SinonStub).yields(errorDB, null);
+			const expectedError = errors.databaseAccess(errorDB);
       testFactory.clearSubItem(itemId, 0).then(() => {
         requester
         .patch(`/api/lists/${list._id}/items/${itemId}`)
         .send(data)
         .end((err: any, res: ChaiHttp.Response) => {
-          res.should.have.status(200)
-          if (!res.body) res.body = JSON.parse(res.text)
-          res.body.id.should.be.eql(itemId.toString())
-          expect(res.body.quantity).to.be.a('number')
-          res.body.author.should.be.a.string
-          testFactory.clearSubItem(itemId, 0).then(() => done())
+					(ListItem.prototype.save as Sinon.SinonStub).restore();
+          res.should.have.status(expectedError.status);
+          res.body.should.be.eql(expectedError);
+          testFactory.clearSubItem(itemId, 0).then(() => done());
         })
+      })
+    });
+    it('should return 200 if action is bring and everything OK', (done) => {
+      const list: ListModelLazy = testFactory.getRandomList();
+      const itemId: string = list.items[0]
+			const data: any = { userId: list.owner, action: actions.BRING_ITEM.code, sub: 0 }
+			Sinon.spy(socketsUtils, 'itemUpdated');
+      testFactory.clearSubItem(itemId, 0).then(() => {
+				ItemsController.findById(itemId).then((item: ItemModel) => {
+					requester
+					.patch(`/api/lists/${list._id}/items/${itemId}`)
+					.send(data)
+					.end((err: any, res: ChaiHttp.Response) => {
+						(socketsUtils.itemUpdated as Sinon.SinonSpy).callCount.should.be.eql(1);
+						// (socketsUtils.itemUpdated as Sinon.SinonSpy).calledWith(list._id, ItemsController.itemBuilder(item)).should.be.eql(true);
+						(socketsUtils.itemUpdated as Sinon.SinonSpy).restore();
+						res.should.have.status(200)
+						if (!res.body) res.body = JSON.parse(res.text)
+						res.body.id.should.be.eql(itemId.toString())
+						expect(res.body.quantity).to.be.a('number')
+						res.body.author.should.be.a.string
+						testFactory.clearSubItem(itemId, 0).then(() => done())
+					})
+				})
       })
     })
     it('should return 400 if action is clear and sub-item not defined', (done) => {
@@ -749,24 +995,48 @@ describe('List Controller', () => {
           })
       })
     })
-    it.skip('should return 500 if action is clear save item fails')
-    it('should return 200 if action is clear and everything OK', (done) => {
+    it('should return 500 if action is clear save item fails', (done) => {
       const list: ListModelLazy = testFactory.getRandomList();
       const itemId: string = list.items[0]
       testFactory.bringRandomSubItem(list, itemId).then((sub: number) => {
         const data: any = { userId: list.owner, action: actions.CLEAR_ITEM.code, sub }
-        const expectedError: ErrorModel = errors.itemAlreadyBrought(itemId)
+				Sinon.stub(ListItem.prototype, 'save');
+				const errorDB = {type: 'MongoDB', msg: 'Mocked database failure'};
+				(ListItem.prototype.save as Sinon.SinonStub).yields(errorDB, null);
+				const expectedError = errors.databaseAccess(errorDB);
         requester
         .patch(`/api/lists/${list._id}/items/${itemId}`)
         .send(data)
         .end((err: any, res: ChaiHttp.Response) => {
-          res.should.have.status(200)
-          if (!res.body) res.body = JSON.parse(res.text)
-          res.body.id.should.be.eql(itemId.toString())
-          expect(res.body.quantity).to.be.a('number')
-          res.body.author.should.be.a.string
-          testFactory.clearSubItem(itemId, sub).then(() => done())
+					(ListItem.prototype.save as Sinon.SinonStub).restore();
+          res.should.have.status(expectedError.status);
+          res.body.should.be.eql(expectedError);
+          testFactory.clearSubItem(itemId, sub).then(() => done());
         })
+      })
+		});
+    it('should return 200 if action is clear and everything OK', (done) => {
+      const list: ListModelLazy = testFactory.getRandomList();
+      const itemId: string = list.items[0]
+      testFactory.bringRandomSubItem(list, itemId).then((sub: number) => {
+				ItemsController.findById(itemId).then((item: ItemModel) => {
+					const data: any = { userId: list.owner, action: actions.CLEAR_ITEM.code, sub }
+					Sinon.spy(socketsUtils, 'itemUpdated');
+					requester
+					.patch(`/api/lists/${list._id}/items/${itemId}`)
+					.send(data)
+					.end((err: any, res: ChaiHttp.Response) => {
+						(socketsUtils.itemUpdated as Sinon.SinonSpy).callCount.should.be.eql(1);
+						// (socketsUtils.itemUpdated as Sinon.SinonSpy).calledWith(list._id, ItemsController.itemBuilder(item)).should.be.eql(true);
+						(socketsUtils.itemUpdated as Sinon.SinonSpy).restore();
+						res.should.have.status(200)
+						if (!res.body) res.body = JSON.parse(res.text)
+						res.body.id.should.be.eql(itemId.toString())
+						expect(res.body.quantity).to.be.a('number')
+						res.body.author.should.be.a.string
+						testFactory.clearSubItem(itemId, sub).then(() => done())
+					})
+				});
       })
     })
   })
@@ -967,17 +1237,84 @@ describe('List Controller', () => {
           done()
         })
     })
-    it.skip('should return 500 if find list by id fails')
-    it.skip('should return 500 if find user by id fails')
-    it.skip('should return 500 if save item fails')
-    it.skip('should return 500 if save list fails')
-    it('should return 200 if request parameters are correct and database operations succeed', (done) => {
+    it('should return 500 if find list by id fails', (done) => {
       const list: ListModelLazy = testFactory.getRandomList()
-      const data: any = {name: 'Item', author: list.owner, quantity: 5}
+			const data: any = {name: 'Item', author: list.owner, quantity: 5}
+			Sinon.stub(List, 'findById');
+			const errorDB = {type: 'MongoDB', msg: 'Mocked database failure'};
+			(List.findById as Sinon.SinonStub).yields(errorDB, null);
+			const expectedError = errors.databaseAccess(errorDB);
       requester
         .post(`/api/lists/${list._id}/items`)
         .send(data)
         .end((err: any, res: ChaiHttp.Response) => {
+					(List.findById as Sinon.SinonStub).restore();
+          res.should.have.status(expectedError.status);
+					res.body.should.be.eql(expectedError);
+          done()
+        })
+    })
+    it('should return 500 if find user by id fails', (done) => {
+      const list: ListModelLazy = testFactory.getRandomList()
+			const data: any = {name: 'Item', author: list.owner, quantity: 5}
+			Sinon.stub(User, 'findById');
+			const errorDB = {type: 'MongoDB', msg: 'Mocked database failure'};
+			(User.findById as Sinon.SinonStub).yields(errorDB, null);
+			const expectedError = errors.databaseAccess(errorDB);
+      requester
+        .post(`/api/lists/${list._id}/items`)
+        .send(data)
+        .end((err: any, res: ChaiHttp.Response) => {
+					(User.findById as Sinon.SinonStub).restore();
+          res.should.have.status(expectedError.status);
+					res.body.should.be.eql(expectedError);
+          done()
+        })
+    })
+    it('should return 500 if save item fails', (done) => {
+      const list: ListModelLazy = testFactory.getRandomList()
+			const data: any = {name: 'Item', author: list.owner, quantity: 5}
+			Sinon.stub(ListItem.prototype, 'save');
+			const errorDB = {type: 'MongoDB', msg: 'Mocked database failure'};
+			(ListItem.prototype.save as Sinon.SinonStub).yields(errorDB, null);
+			const expectedError = errors.databaseAccess(errorDB);
+      requester
+        .post(`/api/lists/${list._id}/items`)
+        .send(data)
+        .end((err: any, res: ChaiHttp.Response) => {
+					(ListItem.prototype.save as Sinon.SinonStub).restore();
+          res.should.have.status(expectedError.status);
+					res.body.should.be.eql(expectedError);
+          done()
+        })
+    })
+    it('should return 500 if save list fails', (done) => {
+      const list: ListModelLazy = testFactory.getRandomList()
+			const data: any = {name: 'Item', author: list.owner, quantity: 5}
+			Sinon.stub(List.prototype, 'save');
+			const errorDB = {type: 'MongoDB', msg: 'Mocked database failure'};
+			(List.prototype.save as Sinon.SinonStub).yields(errorDB, null);
+			const expectedError = errors.databaseAccess(errorDB);
+      requester
+        .post(`/api/lists/${list._id}/items`)
+        .send(data)
+        .end((err: any, res: ChaiHttp.Response) => {
+					(List.prototype.save as Sinon.SinonStub).restore();
+          res.should.have.status(expectedError.status);
+					res.body.should.be.eql(expectedError);
+          done()
+        })
+    })
+    it('should return 200 if request parameters are correct and database operations succeed', (done) => {
+      const list: ListModelLazy = testFactory.getRandomList()
+			const data: any = {name: 'Item', author: list.owner, quantity: 5}
+			Sinon.spy(socketsUtils, 'itemAdded');
+      requester
+        .post(`/api/lists/${list._id}/items`)
+        .send(data)
+        .end((err: any, res: ChaiHttp.Response) => {
+					(socketsUtils.itemAdded as Sinon.SinonSpy).callCount.should.be.eql(1);
+					(socketsUtils.itemAdded as Sinon.SinonSpy).restore();
           res.should.have.status(200)
           if (!res.body) res.body = JSON.parse(res.text)
           res.body.id.should.be.a.string
@@ -1160,18 +1497,102 @@ describe('List Controller', () => {
           done()
         })
     })
-    it.skip('should return 500 if find list by id fails')
-    it.skip('should return 500 if find user by id fails')
-    it.skip('should return 500 if find item by id fails')
-    it.skip('should return 500 if delete item by id fails')
-    it.skip('should return 500 if save list fails')
-    it('should return 200 if everything is OK', (done) => {
+    it('should return 500 if find list by id fails', (done) => {
       const list: ListModelLazy = testFactory.getRandomList()
       const itemId: string = list.items[0]
-      const userId: string = list.owner
+			const userId: string = list.owner;
+			Sinon.stub(List, 'findById');
+			const errorDB = {type: 'MongoDB', msg: 'Mocked database failure'};
+			(List.findById as Sinon.SinonStub).yields(errorDB, null);
+			const expectedError = errors.databaseAccess(errorDB);
       requester
         .delete(`/api/lists/${list._id}/items/${itemId}?userId=${userId}`)
         .end((err: any, res: ChaiHttp.Response) => {
+					(List.findById as Sinon.SinonStub).restore();
+          res.should.have.status(expectedError.status);
+					res.body.should.be.eql(expectedError);
+					done();
+        })
+    })
+    it('should return 500 if find user by id fails', (done) => {
+      const list: ListModelLazy = testFactory.getRandomList()
+      const itemId: string = list.items[0]
+			const userId: string = list.owner;
+			Sinon.stub(User, 'findById');
+			const errorDB = {type: 'MongoDB', msg: 'Mocked database failure'};
+			(User.findById as Sinon.SinonStub).yields(errorDB, null);
+			const expectedError = errors.databaseAccess(errorDB);
+      requester
+        .delete(`/api/lists/${list._id}/items/${itemId}?userId=${userId}`)
+        .end((err: any, res: ChaiHttp.Response) => {
+					(User.findById as Sinon.SinonStub).restore();
+          res.should.have.status(expectedError.status);
+					res.body.should.be.eql(expectedError);
+					done();
+        })
+    })
+    it('should return 500 if find item by id fails', (done) => {
+      const list: ListModelLazy = testFactory.getRandomList()
+      const itemId: string = list.items[0]
+			const userId: string = list.owner;
+			Sinon.stub(ListItem, 'findById');
+			const errorDB = {type: 'MongoDB', msg: 'Mocked database failure'};
+			(ListItem.findById as Sinon.SinonStub).yields(errorDB, null);
+			const expectedError = errors.databaseAccess(errorDB);
+      requester
+        .delete(`/api/lists/${list._id}/items/${itemId}?userId=${userId}`)
+        .end((err: any, res: ChaiHttp.Response) => {
+					(ListItem.findById as Sinon.SinonStub).restore();
+          res.should.have.status(expectedError.status);
+					res.body.should.be.eql(expectedError);
+					done();
+        })
+    })
+    it('should return 500 if delete item by id fails', (done) => {
+      const list: ListModelLazy = testFactory.getRandomList()
+      const itemId: string = list.items[0]
+			const userId: string = list.owner;
+			Sinon.stub(ListItem, 'findByIdAndRemove');
+			const errorDB = {type: 'MongoDB', msg: 'Mocked database failure'};
+			(ListItem.findByIdAndRemove as Sinon.SinonStub).yields(errorDB, null);
+			const expectedError = errors.databaseAccess(errorDB);
+      requester
+        .delete(`/api/lists/${list._id}/items/${itemId}?userId=${userId}`)
+        .end((err: any, res: ChaiHttp.Response) => {
+					(ListItem.findByIdAndRemove as Sinon.SinonStub).restore();
+          res.should.have.status(expectedError.status);
+					res.body.should.be.eql(expectedError);
+					done();
+        })
+    })
+    it.skip('should return 500 if save list fails', (done) => {
+      const list: ListModelLazy = testFactory.getRandomList()
+      const itemId: string = list.items[0]
+			const userId: string = list.owner;
+			Sinon.stub(List.prototype, 'save');
+			const errorDB = {type: 'MongoDB', msg: 'Mocked database failure'};
+			(List.prototype.save as Sinon.SinonStub).yields(errorDB, null);
+			const expectedError = errors.databaseAccess(errorDB);
+      requester
+        .delete(`/api/lists/${list._id}/items/${itemId}?userId=${userId}`)
+        .end((err: any, res: ChaiHttp.Response) => {
+					(List.prototype.save as Sinon.SinonStub).restore();
+          res.should.have.status(expectedError.status);
+					res.body.should.be.eql(expectedError);
+					done();
+        })
+    })
+    it('should return 200 if everything is OK', (done) => {
+      const list: ListModelLazy = testFactory.getRandomList()
+      const itemId: string = list.items[0]
+			const userId: string = list.owner
+			Sinon.spy(socketsUtils, 'itemRemoved');
+      requester
+        .delete(`/api/lists/${list._id}/items/${itemId}?userId=${userId}`)
+        .end((err: any, res: ChaiHttp.Response) => {
+					(socketsUtils.itemRemoved as Sinon.SinonSpy).callCount.should.be.eql(1);
+				  //(socketsUtils.itemRemoved as Sinon.SinonSpy).calledWith(list._id, itemId).should.be.eql(true);
+					(socketsUtils.itemRemoved as Sinon.SinonSpy).restore();
           res.should.have.status(200)
           res.body.id.should.be.eql(itemId.toString())
           ListItem.findById(itemId).then((item) => {
@@ -1350,7 +1771,6 @@ describe('List Controller', () => {
 						done();
 					});
 			})
-
 		});
 	});
 })

@@ -40,7 +40,8 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 const logger = createLogger({
-	transports: useTransports
+	transports: useTransports,
+	silent: process.env.NODE_ENV === 'test'
 });
 
 export default logger;

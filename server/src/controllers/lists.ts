@@ -77,7 +77,7 @@ export default class ListsController {
 		}
 		if (!userId) {
 			ListsController.createUserAndList(listName, userName, userEmail).then(createdList => {
-				MailsController.sendListCreated(createdList.listId, createdList.listName, createdList.user);
+				MailsController.sendListCreated(createdList.listId, createdList.listName, createdList.user.name, createdList.user.email);
 				return res.json(createdList);
 			}, errCreation => {
 				return res.status(errCreation.status || 500).json(errCreation);
@@ -85,7 +85,7 @@ export default class ListsController {
 		} else {
 			UsersController.findById(userId).then((user: UserModel) => {
 				ListsController.createListRequest(listName, user).then(createdList => {
-					MailsController.sendListCreated(createdList.listId, createdList.listName, createdList.user);
+					MailsController.sendListCreated(createdList.listId, createdList.listName, createdList.user.name, createdList.user.email);
 					return res.json(createdList);
 				}, errCreation => {
 					return res.status(errCreation.status || 500).json(errCreation);
@@ -93,7 +93,7 @@ export default class ListsController {
 			}, errFindUser => {
 				if (errFindUser.code === Errors.code.RESOURCE_NOT_FOUND) {
 					ListsController.createUserAndList(listName, userName, userEmail).then(createdList => {
-						MailsController.sendListCreated(createdList.listId, createdList.listName, createdList.user);
+						MailsController.sendListCreated(createdList.listId, createdList.listName, createdList.user.name, createdList.user.email);
 						return res.json(createdList);
 					}, errCreation => {
 						return res.status(errCreation.status || 500).json(errCreation);
@@ -188,7 +188,9 @@ export default class ListsController {
 			name: userName,
 			email: userEmail
 		});
-		const user = await UsersController.save(attendee).catch(errSave => Promise.reject(errSave)) as UserModel;
+		const user = await UsersController.save(attendee).catch(errSave => {
+			return Promise.reject(errSave);
+		}) as UserModel;
 		return this.addAttendeeToList(listId, user);
 	};
 

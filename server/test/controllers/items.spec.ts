@@ -1,12 +1,13 @@
-process.env.NODE_ENV = 'test'
+process.env.NODE_ENV = 'test';
 import chai, { expect } from 'chai';
 import TestFactory from '../factory';
-import { ItemModel } from '../../src/models/item'
-import ItemsController from '../../src/controllers/items'
-import Errors from '../../src/constants/errors'
-import 'mocha'
+import Item, {ItemModel} from '../../src/models/item';
+import ItemsController from '../../src/controllers/items';
+import Errors from '../../src/constants/errors';
+import Sinon from 'sinon';
+import 'mocha';
 
-const should = chai.should()
+const should = chai.should();
 
 describe('Item Controller', () => {
   describe('Find by ID function', () => {
@@ -50,7 +51,17 @@ describe('Item Controller', () => {
         done()
       })
     })
-    it.skip('should throw an error the database call failed')
+    it('should throw an error the database call failed', (done) => {
+      const id = '5b5ad5d1bae6215a38720548';
+      Sinon.stub(Item, 'findById');
+      const errorDB = {type: 'MongoDB', msg: 'Mocked database failure'};
+      (Item.findById as Sinon.SinonStub).yields(errorDB, null)
+      ItemsController.findById(id).then((item) => {}, (err) => {
+        expect(err).to.deep.equal(Errors.databaseAccess(errorDB));
+        (Item.findById as Sinon.SinonStub).restore();
+        done();
+      })
+    })
     })
     describe('Save function', () => {
       let testFactory: TestFactory;
@@ -108,6 +119,16 @@ describe('Item Controller', () => {
           })
         })
       })
-      it.skip('should throw an error the database call failed')
+      it('should throw an error the database call failed', (done) => {
+        const id = '5b5ad5d1bae6215a38720548';
+        Sinon.stub(Item, 'findByIdAndRemove');
+        const errorDB = {type: 'MongoDB', msg: 'Mocked database failure'};
+        (Item.findByIdAndRemove as Sinon.SinonStub).yields(errorDB, null)
+        ItemsController.delete(id).then((item) => {}, (err) => {
+          expect(err).to.deep.equal(Errors.databaseAccess(errorDB));
+          (Item.findByIdAndRemove as Sinon.SinonStub).restore();
+          done();
+        })
+      })
     })
   })

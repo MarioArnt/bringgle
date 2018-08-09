@@ -1,5 +1,4 @@
 import Email from 'email-templates';
-import {UserDTO} from './models/user';
 import Config from '../config';
 import logger from './logger';
 import Errors, {ErrorModel} from './constants/errors';
@@ -14,16 +13,16 @@ export default class MailsController {
 			jsonTransport: true
 		}
 	});
-	public static sendListCreated = (listId: string, listName: string, user: UserDTO) => {
-		logger.info(`Preparing to sending email to ${user.email}.`);
+	public static sendListCreated = (listId: string, listName: string, userName: string, userEmail: string) => {
+		logger.info(`Preparing to sending email to ${userEmail}.`);
 		MailsController.emailOptions
 		.send({
 			template: 'create',
 			message: {
-				to: user.email
+				to: userEmail
 			},
 			locals: {
-				username: user.name,
+				username: userName,
 				listname: listName,
 				link: `${Config.protocole}://${Config.baseURI}/#/list/${listId}`
 			}
