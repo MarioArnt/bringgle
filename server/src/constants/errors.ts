@@ -24,7 +24,8 @@ export default class Errors {
 		INVALID_ACTION: 'E09',
 		ITEM_ALREADY_BROUGHT: 'E10',
 		ITEM_ALREADY_CLEARED: 'E11',
-		EMAIL_NOT_SENT: 'E12'
+		EMAIL_NOT_SENT: 'E12',
+		INVALID_EMAIL_ADDRESS: 'E13'
 	};
 
 	public static databaseAccess = (details: any): ErrorModel => {
@@ -138,6 +139,15 @@ export default class Errors {
 			status: 500,
 			msg: 'Server failed to send email',
 			details
+		};
+	};
+
+	public static invalidEmailAddress = (email: string): ErrorModel => {
+		return {
+			code: Errors.code.INVALID_EMAIL_ADDRESS,
+			status: 400,
+			msg: 'Invalid email address',
+			details: {email}
 		};
 	};
 }

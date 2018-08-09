@@ -1,9 +1,8 @@
 import Email from 'email-templates';
-import {UserDTO, UserModel} from './models/user';
+import {UserDTO} from './models/user';
 import Config from '../config';
 import logger from './logger';
 import Errors, {ErrorModel} from './constants/errors';
-import {ListModelLazy} from './models/list';
 
 export default class MailsController {
 	private static readonly emailOptions = new Email({
@@ -36,7 +35,7 @@ export default class MailsController {
 			logger.error('Error sending mail');
 		});
 	};
-	public static invite = async (list: ListModelLazy, email: string, from: UserModel): Promise<void> => {
+	public static invite = async (listId: string, listName: string, email: string, invitedBy: string): Promise<void> => {
 		MailsController.emailOptions
 		.send({
 			template: 'invite',
@@ -44,9 +43,9 @@ export default class MailsController {
 				to: email
 			},
 			locals: {
-				username: from.name,
-				listname: list.title,
-				link: `${Config.protocole}://${Config.baseURI}/#/list/${list._id}`
+				username: invitedBy,
+				listname: listName,
+				link: `${Config.protocole}://${Config.baseURI}/#/list/${listId}`
 			}
 		})
 		.then(() => {

@@ -3,5 +3,10 @@
 	"rules": {
 		"no-unnecessary-class": ["allow-static-only"],
 		"ban-comma-operator": false
-	}
+	},
+	"linterOptions": {
+		"exclude": [
+				"test/**/*.ts"
+		]
+}
 }

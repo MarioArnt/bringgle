@@ -1,5 +1,5 @@
 process.env.NODE_ENV = 'test'
-import chai, { expect } from 'chai'
+import chai, { expect, assert } from 'chai'
 import chaiHttp from 'chai-http'
 import express from'express'
 import { BringgleServer } from '../../src/server'
@@ -9,8 +9,11 @@ import { ListModelLazy } from '../../src/models/list'
 import { UserModel } from '../../src/models/user'
 import ListItem, { ItemModel } from '../../src/models/item'
 import TestFactory from '../factory'
+import Sinon from 'sinon'
 import 'mocha'
-import Errors from '../../src/constants/errors';
+import MailsController from '../../src/mails';
+import ListsController from '../../src/controllers/lists';
+import UsersController from '../../src/controllers/users';
 
 const server: BringgleServer = new BringgleServer()
 const app: express.Application = server.getApp()
@@ -1177,5 +1180,177 @@ describe('List Controller', () => {
           }).catch(err => console.log(err))
         })
     })
-  })
+	})
+  describe('POST /api/lists/:listId/invite', () => {
+		let testFactory: TestFactory;
+		let requester: any;
+    before((done) => {
+      requester = chai.request(app).keepOpen();
+      testFactory = new TestFactory();
+      testFactory.connectDatabase().then(() => {
+        testFactory.createTestData().then(() => {
+          done();
+        });
+      });
+    });
+    after(() => {
+      requester.close();
+		});
+		beforeEach(() => {
+			Sinon.stub(MailsController, 'invite');
+		});
+		afterEach(() => {
+			(MailsController.invite as Sinon.SinonStub).restore();
+		});
+		it('should return 400 if list ID is undefined or null', (done) => {
+			const listId: string = undefined;
+			const data: any = {
+				userId: '5b5c39c618774c33b4b0a012',
+				email: 'john.connor@skynet.corp'
+			};
+			const expectedError: ErrorModel = errors.noId('list');
+			requester
+				.post(`/api/lists/${listId}/invite`)
+				.send(data)
+				.end((err: any, res: ChaiHttp.Response) => {
+					res.should.have.status(expectedError.status);
+          res.body.should.be.eql(expectedError);
+          done();
+				});
+		});
+		it('should return 400 if email is undefined, null or an empty string', (done) => {
+			const listId: string = '5b5c39c618774c33b4b0a011'
+			const data: any = {
+				userId: '5b5c39c618774c33b4b0a012',
+				email: ''
+			};
+			const expectedError: ErrorModel = errors.missingRequiredField('email');
+			requester
+				.post(`/api/lists/${listId}/invite`)
+				.send(data)
+				.end((err: any, res: ChaiHttp.Response) => {
+          res.should.have.status(expectedError.status);
+          res.body.should.be.eql(expectedError);
+          done();
+				});
+		});
+		it('should return 400 if email is not a valid email address', (done) => {
+			const listId: string = '5b5c39c618774c33b4b0a011'
+			const data: any = {
+				userId: '5b5c39c618774c33b4b0a012',
+				email: 'john.connodzdzezeze'
+			};
+			const expectedError: ErrorModel = errors.invalidEmailAddress(data.email);
+			requester
+				.post(`/api/lists/${listId}/invite`)
+				.send(data)
+				.end((err: any, res: ChaiHttp.Response) => {
+					res.should.have.status(expectedError.status);
+          res.body.should.be.eql(expectedError);
+          done();
+				});
+		});
+		it('should return 400 if user ID is not given or an empty string', (done) => {
+			const listId: string = '5b5c39c618774c33b4b0a011'
+			const data: any = {
+				email: 'john.connor@skynet.corp'
+			};
+			const expectedError: ErrorModel = errors.noId('user');
+			requester
+				.post(`/api/lists/${listId}/invite`)
+				.send(data)
+				.end((err: any, res: ChaiHttp.Response) => {
+					res.should.have.status(expectedError.status);
+          res.body.should.be.eql(expectedError);
+          done();
+				});
+		});
+		it('should return 404 if list not found', (done) => {
+			const listId: string = '5b5c39c618774c33b4b0a011'
+			const data: any = {
+				userId: '5b5c39c618774c33b4b0a012',
+				email: 'john.connor@skynet.corp'
+			};
+			const expectedError: ErrorModel = errors.ressourceNotFound({type: 'list', id: listId});
+			requester
+				.post(`/api/lists/${listId}/invite`)
+				.send(data)
+				.end((err: any, res: ChaiHttp.Response) => {
+					res.should.have.status(expectedError.status);
+          res.body.should.be.eql(expectedError);
+          done();
+				});
+		});
+		it('should return 404 if user not found', (done) => {
+			const list: ListModelLazy = testFactory.getRandomList();
+			const data: any = {
+				userId: '5b5c39c618774c33b4b0a012',
+				email: 'john.connor@skynet.corp'
+			};
+			const expectedError: ErrorModel = errors.ressourceNotFound({type: 'user', id: data.userId});
+			requester
+				.post(`/api/lists/${list._id}/invite`)
+				.send(data)
+				.end((err: any, res: ChaiHttp.Response) => {
+					res.should.have.status(expectedError.status);
+          res.body.should.be.eql(expectedError);
+          done();
+				});
+		});
+		it('should return 401 if user does not attend list', (done) => {
+			const list: ListModelLazy = testFactory.getRandomList();
+			const user: UserModel = testFactory.getRandomNotAttendee(list);
+			const data: any = {
+				userId: user._id,
+				email: 'john.connor@skynet.corp'
+			};
+			const expectedError: ErrorModel = errors.notAuthorized(user._id, 'invite attendee');
+			requester
+				.post(`/api/lists/${list._id}/invite`)
+				.send(data)
+				.end((err: any, res: ChaiHttp.Response) => {
+					res.should.have.status(expectedError.status);
+					expectedError.details.userId = expectedError.details.userId.toString();
+          res.body.should.be.eql(expectedError);
+          done();
+				});
+		});
+		it('should return 500 if the function sending mail failed', (done) => {
+			const expectedError: ErrorModel = errors.emailNotSent({});
+			(MailsController.invite as Sinon.SinonStub).rejects(expectedError);
+			const list: ListModelLazy = testFactory.getRandomList();
+			const data: any = {
+				userId: list.owner,
+				email: 'john.connor@skynet.corp'
+			};
+			requester
+				.post(`/api/lists/${list._id}/invite`)
+				.send(data)
+				.end((err: any, res: ChaiHttp.Response) => {
+					res.should.have.status(expectedError.status);
+          res.body.should.be.eql(expectedError);
+          done();
+				});
+		});
+		it('should return 200 if the mail is successfully sent', (done) => {
+			(MailsController.invite as Sinon.SinonStub).resolves();
+			const list: ListModelLazy = testFactory.getRandomList();
+			UsersController.findById(list.owner).then(user => {
+				const data: any = {
+					userId: (user as UserModel)._id,
+					email: 'john.connor@skynet.corp'
+				};
+				requester
+					.post(`/api/lists/${list._id}/invite`)
+					.send(data)
+					.end((err: any, res: ChaiHttp.Response) => {
+						res.should.have.status(200);
+						(MailsController.invite as Sinon.SinonStub).callCount.should.be.eql(1);
+						(MailsController.invite as Sinon.SinonStub).calledWith(list._id, list.title, data.email, user.name).should.be.true;
+						done();
+					});
+			})
+
+		});
+	});
 })
