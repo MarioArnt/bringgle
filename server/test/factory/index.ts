@@ -24,11 +24,7 @@ export default class TestFactory {
     return new Promise<void>((resolve, reject) => {
       let connection: string;
       if (process.env.travis) {
-        console.log('Connecting DB with travis env variables')
-        console.log(process.env.mongodb_username)
-        console.log(process.env.mongodb_host)
-        console.log(process.env.mongodb_port)
-        connection = `mongodb://${process.env.mongodb_username}:${process.env.password}@${process.env.mongodb_host}:${process.env.mongodb_port}/bringgle-test`
+        connection = `mongodb://${process.env.mongodb_username}:${process.env.mongodb_password}@${process.env.mongodb_host}:${process.env.mongodb_port}/bringgle-test`
       } else {
         connection = `mongodb://${Config.database.test.host}:${Config.database.test.port}/bringgle-test`;
       }

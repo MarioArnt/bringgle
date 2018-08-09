@@ -67,10 +67,15 @@ export class BringgleServer {
 
 	private connectDatabase(): void {
 		logger.info('Connecting database');
-		logger.debug(JSON.stringify(Config));
-		const dbConfig: DatabaseConfig = Config.database[this.env];
-		logger.debug(JSON.stringify(dbConfig));
-		mongoose.connect(`mongodb://${dbConfig.host}:${dbConfig.port}/${dbConfig.name}`, {
+		let connection: string;
+		if (process.env.travis) {
+			connection = `mongodb://${process.env.mongodb_username}:${process.env.mongodb_password}@${process.env.mongodb_host}:${process.env.mongodb_port}/bringgle-test`;
+		} else {
+			const dbConfig: DatabaseConfig = Config.database[this.env];
+			logger.debug(JSON.stringify(dbConfig));
+			connection = `mongodb://${dbConfig.host}:${dbConfig.port}/${dbConfig.name}`;
+		}
+		mongoose.connect(connection, {
 			useNewUrlParser: true
 		}).then(() => {
 			logger.info('Database Connection Succeeded');
