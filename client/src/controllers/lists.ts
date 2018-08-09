@@ -80,7 +80,7 @@ export default class ListsController {
             return resolve()
           case errors.code.EMAIL_ALREADY_TAKEN:
             Logger.info('Email already taken');
-            router.push(`/list/${listId}/recovery?listName=${err.response.data.details.listName}&email=${err.response.data.details.email}`);
+            router.push(`/list/${listId}/recovery?listName=${encodeURIComponent(err.response.data.details.listName)}&email=${encodeURIComponent(err.response.data.details.email)}`);
             return reject(err);
           default:
             return reject(err);
