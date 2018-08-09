@@ -1,5 +1,10 @@
 ![Bringgle](https://raw.githubusercontent.com/MarioArnt/bringgle/master/client/src/assets/logo.png)
 
+![Build Status](https://img.shields.io/travis/com/MarioArnt/bringgle.svg) 
+[![XO code style](https://img.shields.io/badge/code_style-XO-5ed9c7.svg)](https://github.com/xojs/xo)
+
+
+
 > Real-time collaborative check-lists.
 
 As a User create a list and invite friends to attend.

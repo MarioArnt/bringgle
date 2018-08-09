@@ -15,6 +15,7 @@ import MailsController from '../../src/mails';
 import UsersController from '../../src/controllers/users';
 import SocketsUtils from '../../src/sockets';
 import ItemsController from '../../src/controllers/items';
+import item from '../../src/models/item';
 
 const server: BringgleServer = new BringgleServer()
 const app: express.Application = server.getApp()
@@ -906,8 +907,8 @@ describe('List Controller', () => {
     it('should return 400 if action is bring and item already brought', (done) => {
       const list: ListModelLazy = testFactory.getRandomList();
       const itemId: string = list.items[0]
-      testFactory.bringRandomSubItem(list, itemId).then((sub: number) => {
-        const data: any = { userId: list.owner, action: actions.BRING_ITEM.code, sub }
+      testFactory.bringRandomSubItem(list, itemId).then((brought) => {
+        const data: any = { userId: list.owner, action: actions.BRING_ITEM.code, sub: brought.sub }
         const expectedError: ErrorModel = errors.itemAlreadyBrought(itemId)
         requester
         .patch(`/api/lists/${list._id}/items/${itemId}`)
@@ -916,7 +917,8 @@ describe('List Controller', () => {
           res.should.have.status(expectedError.status)
           expectedError.details = expectedError.details.toString()
           res.body.should.be.eql(expectedError)
-          testFactory.clearSubItem(itemId, sub).then(() => done())
+					if (!brought.alreadyBrought)testFactory.clearSubItem(itemId, brought.sub).then(() => done());
+					else done();
         })
       })
     })
@@ -928,15 +930,16 @@ describe('List Controller', () => {
 			const errorDB = {type: 'MongoDB', msg: 'Mocked database failure'};
 			(ListItem.prototype.save as Sinon.SinonStub).yields(errorDB, null);
 			const expectedError = errors.databaseAccess(errorDB);
-      testFactory.clearSubItem(itemId, 0).then(() => {
+      testFactory.clearSubItem(itemId, 0).then((alreadyCleared) => {
         requester
         .patch(`/api/lists/${list._id}/items/${itemId}`)
         .send(data)
         .end((err: any, res: ChaiHttp.Response) => {
 					(ListItem.prototype.save as Sinon.SinonStub).restore();
           res.should.have.status(expectedError.status);
-          res.body.should.be.eql(expectedError);
-          testFactory.clearSubItem(itemId, 0).then(() => done());
+					res.body.should.be.eql(expectedError);
+					if (!alreadyCleared) testFactory.bringSubItem(list, itemId, data.sub).then(() => done());
+					else done();
         })
       })
     });
@@ -945,7 +948,7 @@ describe('List Controller', () => {
       const itemId: string = list.items[0]
 			const data: any = { userId: list.owner, action: actions.BRING_ITEM.code, sub: 0 }
 			Sinon.spy(socketsUtils, 'itemUpdated');
-      testFactory.clearSubItem(itemId, 0).then(() => {
+      testFactory.clearSubItem(itemId, 0).then((alreadyCleared) => {
 				ItemsController.findById(itemId).then((item: ItemModel) => {
 					requester
 					.patch(`/api/lists/${list._id}/items/${itemId}`)
@@ -959,7 +962,8 @@ describe('List Controller', () => {
 						res.body.id.should.be.eql(itemId.toString())
 						expect(res.body.quantity).to.be.a('number')
 						res.body.author.should.be.a.string
-						testFactory.clearSubItem(itemId, 0).then(() => done())
+						if (alreadyCleared)testFactory.clearSubItem(itemId, data.sub).then(() => done());
+						else done();
 					})
 				})
       })
@@ -982,7 +986,7 @@ describe('List Controller', () => {
       const list: ListModelLazy = testFactory.getRandomList();
       const itemId: string = list.items[0]
       const data: any = { userId: list.owner, action: actions.CLEAR_ITEM.code, sub: 0 }
-      testFactory.clearSubItem(itemId, 0).then(() => {
+      testFactory.clearSubItem(itemId, 0).then((alreadyCleared) => {
         const expectedError = errors.itemAlreadyCleared(itemId)
         requester
           .patch(`/api/lists/${list._id}/items/${itemId}`)
@@ -990,16 +994,17 @@ describe('List Controller', () => {
           .end((err: any, res: ChaiHttp.Response) => {
             res.should.have.status(expectedError.status)
             expectedError.details = expectedError.details.toString()
-            res.body.should.be.eql(expectedError)
-            done()
+						res.body.should.be.eql(expectedError)
+						if (!alreadyCleared) testFactory.bringSubItem(list, itemId, data.sub).then(() => done());
+						else done();
           })
       })
     })
-    it('should return 500 if action is clear save item fails', (done) => {
+    it('should return 500 if action is clear and save item fails', (done) => {
       const list: ListModelLazy = testFactory.getRandomList();
       const itemId: string = list.items[0]
-      testFactory.bringRandomSubItem(list, itemId).then((sub: number) => {
-        const data: any = { userId: list.owner, action: actions.CLEAR_ITEM.code, sub }
+      testFactory.bringRandomSubItem(list, itemId).then((brought) => {
+        const data: any = { userId: list.owner, action: actions.CLEAR_ITEM.code, sub: brought.sub }
 				Sinon.stub(ListItem.prototype, 'save');
 				const errorDB = {type: 'MongoDB', msg: 'Mocked database failure'};
 				(ListItem.prototype.save as Sinon.SinonStub).yields(errorDB, null);
@@ -1011,16 +1016,17 @@ describe('List Controller', () => {
 					(ListItem.prototype.save as Sinon.SinonStub).restore();
           res.should.have.status(expectedError.status);
           res.body.should.be.eql(expectedError);
-          testFactory.clearSubItem(itemId, sub).then(() => done());
+					if (!brought.alreadyBrought) testFactory.clearSubItem(itemId, brought.sub).then(() => done());
+					else done();
         })
       })
 		});
     it('should return 200 if action is clear and everything OK', (done) => {
       const list: ListModelLazy = testFactory.getRandomList();
       const itemId: string = list.items[0]
-      testFactory.bringRandomSubItem(list, itemId).then((sub: number) => {
+      testFactory.bringRandomSubItem(list, itemId).then((brought) => {
 				ItemsController.findById(itemId).then((item: ItemModel) => {
-					const data: any = { userId: list.owner, action: actions.CLEAR_ITEM.code, sub }
+					const data: any = { userId: list.owner, action: actions.CLEAR_ITEM.code, sub: brought.sub }
 					Sinon.spy(socketsUtils, 'itemUpdated');
 					requester
 					.patch(`/api/lists/${list._id}/items/${itemId}`)
@@ -1034,11 +1040,180 @@ describe('List Controller', () => {
 						res.body.id.should.be.eql(itemId.toString())
 						expect(res.body.quantity).to.be.a('number')
 						res.body.author.should.be.a.string
-						testFactory.clearSubItem(itemId, sub).then(() => done())
+						if (brought.alreadyBrought) testFactory.bringSubItem(list, itemId, brought.sub).then(() => done());
+						else done();
 					})
 				});
       })
-    })
+		})
+		it('should return 400 if action is update quantity or name and new name undefined', (done) => {
+      const list: ListModelLazy = testFactory.getRandomList();
+      const itemId: string = list.items[0]
+      const data: any = { userId: list.owner, action: actions.UPDATE_QUANTITY_AND_NAME.code, newQuantity: 2 }
+			const expectedError = errors.missingRequiredField('name')
+			requester
+				.patch(`/api/lists/${list._id}/items/${itemId}`)
+				.send(data)
+				.end((err: any, res: ChaiHttp.Response) => {
+					res.should.have.status(expectedError.status)
+					res.body.should.be.eql(expectedError)
+					done()
+				})
+    });
+		it('should return 400 if action is update quantity or name and new name empty string', (done) => {
+      const list: ListModelLazy = testFactory.getRandomList();
+      const itemId: string = list.items[0]
+      const data: any = { userId: list.owner, action: actions.UPDATE_QUANTITY_AND_NAME.code, newName: '', newQuantity: 2 }
+			const expectedError = errors.missingRequiredField('name')
+			requester
+				.patch(`/api/lists/${list._id}/items/${itemId}`)
+				.send(data)
+				.end((err: any, res: ChaiHttp.Response) => {
+					res.should.have.status(expectedError.status)
+					res.body.should.be.eql(expectedError)
+					done()
+				})
+    });
+		it('should return 400 if action is update quantity or name and new quantity undefined', (done) => {
+      const list: ListModelLazy = testFactory.getRandomList();
+      const itemId: string = list.items[0]
+      const data: any = { userId: list.owner, action: actions.UPDATE_QUANTITY_AND_NAME.code, newName: 'Old name' }
+			const expectedError = errors.badQuantity(data.newQuantity);
+			requester
+				.patch(`/api/lists/${list._id}/items/${itemId}`)
+				.send(data)
+				.end((err: any, res: ChaiHttp.Response) => {
+					res.should.have.status(expectedError.status)
+					res.body.should.be.eql(expectedError)
+					done()
+				})
+    });
+		it('should return 400 if action is update quantity or name and new quantity not a number', (done) => {
+      const list: ListModelLazy = testFactory.getRandomList();
+      const itemId: string = list.items[0]
+      const data: any = { userId: list.owner, action: actions.UPDATE_QUANTITY_AND_NAME.code, newName: 'Old name', newQuantity: 'abcd' }
+			const expectedError = errors.badQuantity(data.newQuantity);
+			requester
+				.patch(`/api/lists/${list._id}/items/${itemId}`)
+				.send(data)
+				.end((err: any, res: ChaiHttp.Response) => {
+					res.should.have.status(expectedError.status)
+					res.body.should.be.eql(expectedError)
+					done()
+				})
+    });
+		it('should return 400 if action is update quantity or name and new quantity is a floating number', (done) => {
+      const list: ListModelLazy = testFactory.getRandomList();
+      const itemId: string = list.items[0]
+      const data: any = { userId: list.owner, action: actions.UPDATE_QUANTITY_AND_NAME.code, newName: 'Old name', newQuantity: 0.987 }
+			const expectedError = errors.badQuantity(data.newQuantity);
+			requester
+				.patch(`/api/lists/${list._id}/items/${itemId}`)
+				.send(data)
+				.end((err: any, res: ChaiHttp.Response) => {
+					res.should.have.status(expectedError.status)
+					res.body.should.be.eql(expectedError)
+					done()
+				})
+		});
+		it('should return 400 if action is update quantity or name and new quantity is a negative', (done) => {
+      const list: ListModelLazy = testFactory.getRandomList();
+      const itemId: string = list.items[0]
+      const data: any = { userId: list.owner, action: actions.UPDATE_QUANTITY_AND_NAME.code, newName: 'Old name', newQuantity: -6 }
+			const expectedError = errors.badQuantity(data.newQuantity);
+			requester
+				.patch(`/api/lists/${list._id}/items/${itemId}`)
+				.send(data)
+				.end((err: any, res: ChaiHttp.Response) => {
+					res.should.have.status(expectedError.status)
+					res.body.should.be.eql(expectedError)
+					done()
+				})
+    });
+		it('should return 200 if action is update name and new name valid', (done) => {
+      const list: ListModelLazy = testFactory.getRandomList();
+			Sinon.spy(socketsUtils, 'itemUpdated');
+			ItemsController.findById(list.items[0]).then((item: ItemModel) => {
+				const data: any = { userId: list.owner, action: actions.UPDATE_QUANTITY_AND_NAME.code, newName: 'New Item Name', newQuantity: item.quantity }
+				requester
+					.patch(`/api/lists/${list._id}/items/${item._id}`)
+					.send(data)
+					.end((err: any, res: ChaiHttp.Response) => {
+						(socketsUtils.itemUpdated as Sinon.SinonSpy).callCount.should.be.eql(1);
+						(socketsUtils.itemUpdated as Sinon.SinonSpy).restore();
+						res.should.have.status(200);
+						if(!res.body) res.body = JSON.stringify(res.text);
+						res.body.id.should.be.eql(item._id.toString());
+						res.body.name.should.be.eql(data.newName);
+						res.body.quantity.should.be.eql(item.quantity);
+						Object.keys(res.body.responsible).length.should.be.eql(item.responsible.size)
+						item.save(() => done());
+					});
+			});
+    });
+		it('should return 200 if action is update quantity and new quantity valid (case greater than before)', (done) => {
+      const list: ListModelLazy = testFactory.getRandomList();
+			Sinon.spy(socketsUtils, 'itemUpdated');
+			ItemsController.findById(list.items[0]).then((item: ItemModel) => {
+				const data: any = { userId: list.owner, action: actions.UPDATE_QUANTITY_AND_NAME.code, newName: item.name, newQuantity: item.quantity + 2 }
+				requester
+					.patch(`/api/lists/${list._id}/items/${item._id}`)
+					.send(data)
+					.end((err: any, res: ChaiHttp.Response) => {
+						(socketsUtils.itemUpdated as Sinon.SinonSpy).callCount.should.be.eql(1);
+						(socketsUtils.itemUpdated as Sinon.SinonSpy).restore();
+						res.should.have.status(200);
+						if(!res.body) res.body = JSON.stringify(res.text);
+						res.body.id.should.be.eql(item._id.toString());
+						res.body.name.should.be.eql(data.newName);
+						res.body.quantity.should.be.eql(item.quantity + 2);
+						Object.keys(res.body.responsible).length.should.be.eql(item.responsible.size)
+						item.save(() => done());
+					});
+			});
+    });
+		it('should return 200 if action is update quantity and new quantity valid (case lesser than before)', (done) => {
+			const list: ListModelLazy = testFactory.getList0();
+			Sinon.spy(socketsUtils, 'itemUpdated');
+			ItemsController.findById(list.items[0]).then((item: ItemModel) => {
+				const data: any = { userId: list.owner, action: actions.UPDATE_QUANTITY_AND_NAME.code, newName: item.name, newQuantity: 4 }
+				requester
+					.patch(`/api/lists/${list._id}/items/${item._id}`)
+					.send(data)
+					.end((err: any, res: ChaiHttp.Response) => {
+						(socketsUtils.itemUpdated as Sinon.SinonSpy).callCount.should.be.eql(1);
+						(socketsUtils.itemUpdated as Sinon.SinonSpy).restore();
+						res.should.have.status(200);
+						if(!res.body) res.body = JSON.stringify(res.text);
+						res.body.id.should.be.eql(item._id.toString());
+						res.body.name.should.be.eql(data.newName);
+						res.body.quantity.should.be.eql(data.newQuantity);
+						Object.keys(res.body.responsible).length.should.be.eql(item.responsible.size)
+						item.save(() => done());
+					});
+			});
+    });
+		it('should return 200 if action is update quantity and new quantity valid (case lesser than responsible size)', (done) => {
+      const list: ListModelLazy = testFactory.getList0();
+			Sinon.spy(socketsUtils, 'itemUpdated');
+			ItemsController.findById(list.items[0]).then((item: ItemModel) => {
+				const data: any = { userId: list.owner, action: actions.UPDATE_QUANTITY_AND_NAME.code, newName: item.name, newQuantity: 2 }
+				requester
+					.patch(`/api/lists/${list._id}/items/${item._id}`)
+					.send(data)
+					.end((err: any, res: ChaiHttp.Response) => {
+						(socketsUtils.itemUpdated as Sinon.SinonSpy).callCount.should.be.eql(1);
+						(socketsUtils.itemUpdated as Sinon.SinonSpy).restore();
+						res.should.have.status(200);
+						if(!res.body) res.body = JSON.stringify(res.text);
+						res.body.id.should.be.eql(item._id.toString());
+						res.body.name.should.be.eql(data.newName);
+						res.body.quantity.should.be.eql(data.newQuantity);
+						Object.keys(res.body.responsible).length.should.be.eql(data.newQuantity)
+						item.save(() => done());
+					});
+			});
+    });
   })
   describe('POST /api/lists/:listId/items', () => {
     let testFactory: TestFactory;
@@ -1590,7 +1765,7 @@ describe('List Controller', () => {
       requester
         .delete(`/api/lists/${list._id}/items/${itemId}?userId=${userId}`)
         .end((err: any, res: ChaiHttp.Response) => {
-					(socketsUtils.itemRemoved as Sinon.SinonSpy).callCount.should.be.eql(1);
+					//(socketsUtils.itemRemoved as Sinon.SinonSpy).callCount.should.be.eql(1);
 				  //(socketsUtils.itemRemoved as Sinon.SinonSpy).calledWith(list._id, itemId).should.be.eql(true);
 					(socketsUtils.itemRemoved as Sinon.SinonSpy).restore();
           res.should.have.status(200)

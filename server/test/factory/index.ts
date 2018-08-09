@@ -118,12 +118,13 @@ export default class TestFactory {
   private createItemsForList = async(list: ListModelLazy): Promise<ListModelLazy> => {
     return new Promise<ListModelLazy>((resolve, reject) => {
       const saveItemsOperations: Promise<ItemModel>[] = [];
-      const numberItems = this.getRandom(1, NB_ITEMS)
+      const numberItems = (list.title === 'List #0') ? 1 : this.getRandom(1, NB_ITEMS);
       for(let j: number = 0; j < numberItems; ++j) {
-        const quantity = this.getRandom(1, 10)
-        const author = this.getRandomAttendee(list)
-        const responsible = new Map<string, string>()
-        for(let k: number = 0; k < quantity; k++) {
+        const quantity = (list.title === 'List #0') ? 5 : this.getRandom(1, 10);
+        const author = this.getRandomAttendee(list);
+        const responsible = new Map<string, string>();
+        const nbResponsible = (list.title === 'List #0') ? 3 : this.getRandom(0, quantity);
+        for(let k: number = 0; k < nbResponsible; k++) {
           responsible.set(k.toString(), this.getRandomAttendee(list))
         }
         const item = new Item({
@@ -178,26 +179,40 @@ export default class TestFactory {
     return item
   }
 
-  public bringRandomSubItem = async (list: ListModelLazy, id: string): Promise<number> => {
-    return new Promise<number>((resolve, reject) => {
+  public bringRandomSubItem = async (list: ListModelLazy, id: string): Promise<any> => {
+    return new Promise<any>((resolve, reject) => {
       Item.findById(id).then((item: ItemModel) => {
         const usrId: string = this.getRandomAttendee(list)
         User.findById(usrId).then((user: UserModel) => {
           const sub: number = this.getRandom(0, item.quantity)
+          const alreadyBrought: boolean = !!item.get(sub.toString());
           item.responsible.set(sub.toString(), user)
-          item.save().then(() => resolve(sub), (err) => reject(err))
+          item.save().then(() => resolve({sub, alreadyBrought}), (err) => reject(err))
         }).catch(err => reject(err))
       }).catch(err => reject(err))
     })
   }
 
-  public clearSubItem = async (id: string, sub: number): Promise<void> => {
-    return new Promise<void>((resolve, reject) => {
+  public clearSubItem = async (id: string, sub: number): Promise<boolean> => {
+    return new Promise<boolean>((resolve, reject) => {
       Item.findById(id).then((item: ItemModel) => {
+        const alreadyCleared: boolean = !item.get(sub.toString());
         item.responsible.delete(sub.toString())
-        item.save().then(() => resolve(), (err) => reject(err))
+        item.save().then(() => resolve(alreadyCleared), (err) => reject(err))
       }).catch(err => reject(err))
     })
+  }
+
+  public bringSubItem = async (list: ListModelLazy, id: string, sub: number): Promise<void> => {
+    return new Promise<void>((resolve, reject) => {
+      Item.findById(id).then((item: ItemModel) => {
+        const usrId: string = this.getRandomAttendee(list)
+        User.findById(usrId).then((user: UserModel) => {
+          item.responsible.set(sub.toString(), user);
+          item.save().then(() => resolve(), (err) => reject(err));
+        });
+      });
+    });
   }
 
   public getRandomItem = (): ItemModel => {
@@ -215,5 +230,9 @@ export default class TestFactory {
       responsible: {},
       created: Date.now()
     }))
+  }
+
+  public getList0 = (): ListModelLazy => {
+    return this.lists.find(l => l.title === 'List #0');
   }
 }
