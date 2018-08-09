@@ -4,6 +4,7 @@ import Home from '@/components/Home'
 import CreateList from '@/components/CreateList'
 import JoinList from '@/components/JoinList'
 import List from '@/components/List'
+import RecoverSession from '@/components/RecoverSession'
 
 Vue.use(Router)
 
@@ -26,6 +27,16 @@ export default new Router({
     {
       path: '/list/:id/join',
       component: JoinList
+    },
+    {
+      path: '/list/:id/recovery',
+      component: RecoverSession,
+      props: (route) => ({
+        userId: route.query.userId,
+        listName: route.query.listName,
+        userName: route.query.userName,
+        email: route.query.email
+      })
     }
   ]
 })

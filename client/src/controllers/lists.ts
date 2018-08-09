@@ -17,7 +17,6 @@ export default class ListsController {
   socketsUtils: SocketsUtils;
   cookiesUtils: CookiesUtils;
   constructor () {
-    this.cookiesUtils = new CookiesUtils();
     this.socketsUtils = new SocketsUtils();
   }
   public fetchList = async (id: string): Promise<void> => {
@@ -64,24 +63,30 @@ export default class ListsController {
     } else Logger.debug('Joining list as new user')
     postAs.name = displayName
     postAs.email = userEmail
-    this.joinRequest(listId, postAs).then((data: CreateJoinResponse) => {
-      Logger.info('User joined the list', data.user)
-      this.cookiesUtils.setUser(data.user)
-      store.commit('changeCurrentUser', this.cookiesUtils.getUser())
-      router.push('/list/' + listId)
-      Promise.resolve()
-    }, (err) => {
-      Logger.error('Error happened')
-      if (!err.response) Promise.reject(err)
-      switch (err.response.data.code) {
-        case errors.code.USER_ALREADY_IN_LIST:
-          Logger.info('User already attend the list redirecting')
-          router.push('/list/' + listId)
-          return Promise.resolve()
-        default:
-          return Promise.reject(err)
-      }
-    })
+    return new Promise<void>((resolve, reject) => {
+      this.joinRequest(listId, postAs).then((data: CreateJoinResponse) => {
+        Logger.info('User joined the list', data.user)
+        CookiesUtils.setUser(data.user)
+        store.commit('changeCurrentUser', CookiesUtils.getUser())
+        router.push('/list/' + listId)
+        resolve()
+      }, (err) => {
+        Logger.error('Error happened')
+        if (!err.response) reject(err)
+        switch (err.response.data.code) {
+          case errors.code.USER_ALREADY_IN_LIST:
+            Logger.info('User already attend the list redirecting')
+            router.push('/list/' + listId)
+            return resolve()
+          case errors.code.EMAIL_ALREADY_TAKEN:
+            Logger.info('Email already taken');
+            router.push(`/list/${listId}/recovery?listName=${err.response.data.details.listName}&email=${err.response.data.details.email}`);
+            return reject(err);
+          default:
+            return reject(err);
+        }
+      });
+    });
   }
   
   private joinRequest = (listId: string, payload: User): Promise<CreateJoinResponse> => {
@@ -105,7 +110,7 @@ export default class ListsController {
     const payload = new List(listName, postAs)
     return new Promise<void>((resolve, reject) => {
       this.postList(payload).then((data) => {
-        this.cookiesUtils.setUser(data.user)
+        CookiesUtils.setUser(data.user)
         router.push('/list/' + data.listId)
         resolve()
       }, (err) => {

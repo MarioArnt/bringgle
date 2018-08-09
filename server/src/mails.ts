@@ -66,7 +66,7 @@ export default class MailsController {
 			locals: {
 				username: userName,
 				listname: listName,
-				link: `${Config.protocole}://${Config.baseURI}/#/list/${listId}/recovery?userId=${userId}`
+				link: `${Config.protocole}://${Config.baseURI}/#/list/${listId}/recovery?userId=${userId}&userName=${userName}&email=${userEmail}`
 			}
 		})
 		.then(() => {

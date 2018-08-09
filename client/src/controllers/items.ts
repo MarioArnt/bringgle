@@ -9,7 +9,6 @@ import actions from '@/constants/actions'
 export default class ItemsController {
   private cookiesUtils: CookiesUtils;
   public constructor () {
-    this.cookiesUtils = new CookiesUtils();
   }
   public addItem = (quantity, name) => {
     return new Promise((resolve, reject) => {
@@ -88,7 +87,7 @@ export default class ItemsController {
       case errors.code.NO_ID:
         if (err.details.type === 'user') {
           Logger.error('User ID undefined')
-          this.cookiesUtils.removeUser()
+          CookiesUtils.removeUser()
           return router.push('/')
         }
         break

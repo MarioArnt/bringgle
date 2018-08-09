@@ -15,7 +15,6 @@ import MailsController from '../../src/mails';
 import UsersController from '../../src/controllers/users';
 import SocketsUtils from '../../src/sockets';
 import ItemsController from '../../src/controllers/items';
-import item from '../../src/models/item';
 
 const server: BringgleServer = new BringgleServer()
 const app: express.Application = server.getApp()
@@ -506,7 +505,7 @@ describe('List Controller', () => {
 					email: owner.email
 				};
 				Sinon.spy(MailsController,'recoverSession');
-				const expectedError = errors.emailAlreadyTaken(owner.email);
+				const expectedError = errors.emailAlreadyTaken(owner.email, list.title);
 				requester
         .post(`/api/lists/${list._id}/join`)
         .send(joinData)
@@ -527,7 +526,7 @@ describe('List Controller', () => {
 					name: 'Whatever',
 					email: owner.email
 				};
-				const expectedError = errors.emailAlreadyTaken(owner.email);
+				const expectedError = errors.emailAlreadyTaken(owner.email, list.title);
 				Sinon.spy(MailsController,'recoverSession');
 				requester
         .post(`/api/lists/${list._id}/join`)

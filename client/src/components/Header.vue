@@ -19,8 +19,6 @@
 import router from '../router'
 import CookiesUtils from '../cookies';
 
-const cookiesUtils: CookiesUtils = new CookiesUtils();
-
 export default {
   name: 'Header',
   data: function () {
@@ -33,7 +31,7 @@ export default {
   },
   methods: {
     logOut () {
-      cookiesUtils.removeUser()
+      CookiesUtils.removeUser()
       router.push('/')
     }
   }

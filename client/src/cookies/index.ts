@@ -4,15 +4,15 @@ import store from '@/store'
 import User from '@/models/user';
 
 export default class CookiesUtils {
-  setUser = (user: User) => {
+  public static setUser = (user: User) => {
     Cookies.set('user_id', user.id)
     Cookies.set('user_name', user.name)
     Cookies.set('user_email', user.email)
-    store.commit('changeCurrentUser', this.getUser())
+    store.commit('changeCurrentUser', CookiesUtils.getUser())
     Logger.info('User saved in cookies', Cookies.get())
   }
   
-  getUser = (): User => {
+  public static getUser = (): User => {
     const user = new User()
     const cookies = Cookies.get()
     if (cookies.user_id) user.id = cookies.user_id
@@ -22,7 +22,7 @@ export default class CookiesUtils {
     return user
   }
   
-  removeUser = (): void => {
+  public static removeUser = (): void => {
     Cookies.remove('user_id')
     Cookies.remove('user_name')
     Cookies.remove('user_email')

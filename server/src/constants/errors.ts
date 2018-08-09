@@ -152,12 +152,12 @@ export default class Errors {
 		};
 	};
 
-	public static emailAlreadyTaken = (email: string): ErrorModel => {
+	public static emailAlreadyTaken = (email: string, listName: string): ErrorModel => {
 		return {
 			code: Errors.code.EMAIL_ALREADY_TAKEN,
 			status: 400,
 			msg: 'Email already taken',
-			details: {email}
+			details: {email, listName}
 		};
 	};
 }

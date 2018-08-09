@@ -10,12 +10,10 @@
 import CookiesUtils from './cookies'
 import store from './store'
 
-const cookiesUtils: CookiesUtils = new CookiesUtils()
-
 export default {
   name: 'App',
   created: function () {
-    store.commit('changeCurrentUser', cookiesUtils.getUser())
+    store.commit('changeCurrentUser', CookiesUtils.getUser())
   }
 }
 </script>

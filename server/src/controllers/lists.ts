@@ -72,7 +72,7 @@ export default class ListsController {
 				if (list.attendees.some(att => att.email === userEmail)) {
 					const user: UserModel = list.attendees.find(att => att.email === userEmail);
 					MailsController.recoverSession(list._id, list.title, user._id, user.name, userEmail);
-					return resolve(Errors.emailAlreadyTaken(userEmail));
+					return resolve(Errors.emailAlreadyTaken(userEmail, list.title));
 				}
 				return resolve(null);
 			}, err => {
