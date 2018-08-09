@@ -2,6 +2,7 @@ import User, { UserModel } from '../../src/models/user'
 import List, { ListModelLazy } from '../../src/models/list';
 import Item, { ItemModel } from '../../src/models/item';
 import mongoose from 'mongoose'
+import Config from '../../config'
 
 const NB_USERS: number = 10;
 const NB_LISTS: number = 6;
@@ -21,7 +22,13 @@ export default class TestFactory {
 
   public connectDatabase = async (): Promise<void> => {
     return new Promise<void>((resolve, reject) => {
-      mongoose.connect(`mongodb://localhost:27017/bringgle-test`, { useNewUrlParser: true }).then(() => resolve(), (err) => reject(err))
+      let connection: string;
+      if (process.env.travis) {
+        connection = `mongodb://${process.env.mongodb_username}:${process.env.password}@${process.env.mongodb_host}:${process.env.mongodb_port}/bringgle-test`
+      } else {
+        connection = `mongodb://${Config.database.test.host}:${Config.database.test.port}/bringgle-test`;
+      }
+      mongoose.connect(connection, { useNewUrlParser: true }).then(() => resolve(), (err) => reject(err))
     })
   }
 
