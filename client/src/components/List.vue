@@ -1,6 +1,6 @@
 <template lang="pug">
   .list
-    h1(v-if="$store.state.listStatus.error") Error occured
+    error-page(v-if="$store.state.listStatus.error" :status="$store.state.listStatus.error" type="List")
     .list-content.md-layout(v-if="$store.state.listStatus.loaded")
       .md-layout-item.md-size-100
         h1 {{  $store.state.currentList.title }}
@@ -20,9 +20,10 @@
         add-attendee
 </template>
 <script lang="ts">
-import ItemsList from '@/components/ItemsList.vue'
-import AddAttendee from '@/components/AddAttendee.vue'
+import ItemsList from '@/components/ItemsList'
+import AddAttendee from '@/components/AddAttendee'
 import ListsController from '@/controllers/lists'
+import ErrorPage from '@/components/ErrorPage'
 
 export default {
   data: function () {
@@ -31,13 +32,15 @@ export default {
      }
   },
   name: 'List',
-  components: { ItemsList, AddAttendee },
+  components: { ItemsList, AddAttendee, ErrorPage },
   beforeCreate: function () {
     this.$store.commit('clearListStatus')
   },
   created: function () {
     this.listsController = new ListsController()
-    this.listsController.fetchList(this.$route.params.id)
+    this.listsController.fetchList(this.$route.params.id).catch((err) => {
+      this.$toastr.e(err.msg);
+    });
   },
   beforeDestroy: function () {
     // Disconnect socket

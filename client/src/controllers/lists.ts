@@ -4,9 +4,10 @@ import store from '@/store'
 import SocketsUtils from '@/sockets'
 import CookiesUtils from '@/cookies'
 import router from '@/router'
-import errors from '@/constants/errors'
+import errors, { ToastError } from '@/constants/errors'
 import User from '@/models/user';
 import List from '@/models/list';
+import { AxiosError } from '../../node_modules/axios';
 
 interface CreateJoinResponse {
   listId: string;
@@ -19,6 +20,7 @@ export default class ListsController {
   constructor () {
     this.socketsUtils = new SocketsUtils();
   }
+
   public fetchList = async (id: string): Promise<void> => {
     Logger.debug('Fetching list', id)
     this.getList(id).then((list) => {
@@ -26,15 +28,8 @@ export default class ListsController {
       this.socketsUtils.createSocket()
       return Promise.resolve()
     }, (err) => {
-      if (err.code === errors.code.NOT_AUTHORIZED) {
-        Logger.info('Current user is not an attendee, redirecting...', store.state.currentUser)
-        router.push('/list/' + id + '/join')
-        return Promise.resolve()
-      }
-      Logger.error('Error happened while loading the list', err)
-      store.commit('errorLoadingList')
-      return Promise.reject(err)
-    })
+      this.handleFetchListErrors(err, id);
+    });
   }
   
   private getList = async (id: string): Promise<List> => {
@@ -47,11 +42,52 @@ export default class ListsController {
         userId: store.state.currentUser.id
       }
     }).catch((err) => {
-      return Promise.reject(err.response)
+      return Promise.reject(err)
     })
     Logger.debug('List loaded', store.state.currentList)
     store.commit('changeCurrentList', res.data)
     return res.data
+  }
+
+  private handleFetchListErrors = (err: AxiosError, listId: string) => {
+    if (!err.response || !err.response.data) {
+      store.commit('errorLoadingList', 500);
+      return Promise.reject(new ToastError('Disconnect from server'));
+    }
+    switch(err.response.data.code) {
+      case errors.code.NO_ID: {
+        const type = !err.response.data.details ? '' : err.response.data.details.type;
+        switch(type){
+          case 'list':
+            router.push('/');
+            return Promise.reject(new ToastError('Invalid list ID'));
+          case 'user':
+            Logger.info('Current user has no session, redirecting...', store.state.currentUser);
+            router.push('/list/' + listId + '/join');
+            return Promise.resolve();
+          default:
+            return Promise.reject(new ToastError());
+        }
+      }
+      case errors.code.RESOURCE_NOT_FOUND: {
+        const type = !err.response.data.details ? '' : err.response.data.details.type;
+        switch(type){
+          case 'list':
+            Logger.error('404: List not found');
+            store.commit('errorLoadingList', 404);
+            return Promise.reject(new ToastError('Ooops it seems this list does not exist'));
+        }
+      }
+      case errors.code.NOT_AUTHORIZED: {
+        Logger.info('Current user is not an attendee, redirecting...', store.state.currentUser)
+        router.push('/list/' + listId + '/join')
+        return Promise.resolve()
+      }
+      default:
+        Logger.error('Error happened while loading the list', err);
+        store.commit('errorLoadingList', 500);
+        return Promise.reject(new ToastError());
+    }
   }
   
   public joinList = async (listId: string, displayName: string, userEmail: string): Promise<void> => {

@@ -13,7 +13,7 @@ const store: StoreOptions<RootState> = {
     currentList: new List(),
     listStatus: {
       loaded: false,
-      error: false
+      error: null
     }
   },
   mutations: Mutations

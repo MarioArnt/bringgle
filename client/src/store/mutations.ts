@@ -93,15 +93,15 @@ const mutations: MutationTree<RootState> = {
   },
   listLoaded (state: RootState): void {
     Vue.set(state.listStatus, 'loaded', true)
-    Vue.set(state.listStatus, 'error', false)
+    Vue.set(state.listStatus, 'error', null)
   },
-  errorLoadingList (state: RootState): void {
+  errorLoadingList (state: RootState, status: number): void {
     Vue.set(state.listStatus, 'loaded', false)
-    Vue.set(state.listStatus, 'error', true)
+    Vue.set(state.listStatus, 'error', status)
   },
   clearListStatus (state: RootState): void {
     Vue.set(state.listStatus, 'loaded', false)
-    Vue.set(state.listStatus, 'error', false)
+    Vue.set(state.listStatus, 'error', null)
   }
 };
 
