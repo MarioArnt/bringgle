@@ -24,26 +24,21 @@ import ItemsList from '@/components/ItemsList'
 import AddAttendee from '@/components/AddAttendee'
 import ListsController from '@/controllers/lists'
 import ErrorPage from '@/components/ErrorPage'
+import SocketsUtils from '../sockets';
 
 export default {
-  data: function () {
-    return {
-      listsController: ListsController
-     }
-  },
   name: 'List',
   components: { ItemsList, AddAttendee, ErrorPage },
   beforeCreate: function () {
     this.$store.commit('clearListStatus')
   },
   created: function () {
-    this.listsController = new ListsController()
-    this.listsController.fetchList(this.$route.params.id).catch((err) => {
+    ListsController.fetchList(this.$route.params.id).catch((err) => {
       this.$toastr.e(err.msg);
     });
   },
   beforeDestroy: function () {
-    // Disconnect socket
+    SocketsUtils.destroySocket();
   }
 }
 </script>

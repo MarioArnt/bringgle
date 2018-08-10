@@ -45,8 +45,6 @@ import ItemsController from '../controllers/items'
 import AddItem from '../components/AddItem.vue'
 import Vue from 'vue'
 
-const itemsController: ItemsController = new ItemsController();
-
 export default {
   name: 'ItemsList',
   components: { AddItem },
@@ -58,7 +56,7 @@ export default {
   },
   methods: {
     bringItem (item, sub) {
-      itemsController.bringItem(item, sub).catch((err) => {
+      ItemsController.bringItem(item, sub).catch((err) => {
         this.$toastr.e(err.msg);
       })
     },
@@ -72,7 +70,7 @@ export default {
     },
     removeItem (item) {
       Logger.info(`User ${this.$store.state.currentUser.name} remove item ${item.name}`)
-      itemsController.removeItem(item.id).catch((err => {
+      ItemsController.removeItem(item.id).catch((err => {
         this.$toastr.e(err.msg);
       }))
     }

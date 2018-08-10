@@ -19,8 +19,6 @@
 import ItemsController from '@/controllers/items'
 import Logger from 'js-logger'
 
-const itemsController: ItemsController = new ItemsController()
-
 export default {
   props: ['itemId', 'itemQuantity', 'itemName'],
   data: function () {
@@ -47,7 +45,7 @@ export default {
       this.$validator.validate().then((valid) => {
         if (valid && !this.edit) {
           Logger.debug('Creating new item')
-          itemsController.addItem(this.quantity, this.name).then(() => {
+          ItemsController.addItem(this.quantity, this.name).then(() => {
             this.quantity = 1
             this.name = ''
             this.$forceUpdate()
@@ -62,7 +60,7 @@ export default {
             Logger.debug('Nothing changed')
             this.$store.commit('disableEditionState', this.itemId)
           } else {
-            itemsController.updateItem(this.itemId, this.quantity, this.name).then(() => {
+            ItemsController.updateItem(this.itemId, this.quantity, this.name).then(() => {
               Logger.debug('Item updated')
             })
           }

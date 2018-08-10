@@ -6,43 +6,48 @@ import User from '@/models/user'
 import Item from '@/models/item'
 
 export default class SocketsUtils {
-  public createSocket = (): void => {
-    const socket = io(`${config.server.host}:${config.server.port}`, {
+  private static socket: io.Socket;
+  public static createSocket = (): void => {
+    SocketsUtils.socket = io(`${config.server.host}:${config.server.port}`, {
       query: {
         userId: store.state.currentUser.id,
         listId: store.state.currentList.id
       }
     })
-    socket.on('user connected', connected => this.userConnectedOrDisconnected(store, connected))
-    socket.on('user disconnected', connected => this.userConnectedOrDisconnected(store, connected))
-    socket.on('user joined', user => this.userJoined(store, user))
-    socket.on('item added', item => this.itemAdded(store, item))
-    socket.on('item updated', item => this.itemUpdated(store, item))
-    socket.on('item removed', item => this.itemRemoved(store, item))
-    Logger.info('Socket created', socket)
+    SocketsUtils.socket.on('user connected', connected => SocketsUtils.userConnectedOrDisconnected(store, connected))
+    SocketsUtils.socket.on('user disconnected', connected => SocketsUtils.userConnectedOrDisconnected(store, connected))
+    SocketsUtils.socket.on('user joined', user => SocketsUtils.userJoined(store, user))
+    SocketsUtils.socket.on('item added', item => SocketsUtils.itemAdded(store, item))
+    SocketsUtils.socket.on('item updated', item => SocketsUtils.itemUpdated(store, item))
+    SocketsUtils.socket.on('item removed', item => SocketsUtils.itemRemoved(store, item))
+    Logger.info('Socket created', SocketsUtils.socket)
+  }
+
+  public static destroySocket = (): void => {
+    SocketsUtils.socket.close();
   }
   
-  private userConnectedOrDisconnected = (store, connected: string[]) => {
+  private static userConnectedOrDisconnected = (store, connected: string[]) => {
     Logger.info('Connected: ', connected)
     store.commit('changeConnectedUsers', connected)
   }
   
-  private userJoined = (store, user: User): void => {
+  private static userJoined = (store, user: User): void => {
     Logger.info('New user joined list', user)
     store.commit('addAttendee', user)
   }
   
-  private itemAdded = (store, item: Item): void => {
+  private static itemAdded = (store, item: Item): void => {
     Logger.info('New item added to list', item)
     store.commit('addItem', item)
   }
   
-  private itemUpdated = (store, item: Item): void => {
+  private static itemUpdated = (store, item: Item): void => {
     Logger.info('Item updated', item)
     store.commit('updateItem', item)
   }
   
-  private itemRemoved = (store, itemId: string): void => {
+  private static itemRemoved = (store, itemId: string): void => {
     Logger.info('Item remove', itemId)
     store.commit('removeItem', itemId)
   }

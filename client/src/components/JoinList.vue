@@ -20,8 +20,6 @@ import ListsController from '../controllers/lists'
 import store from '../store'
 import Logger from 'js-logger'
 
-const listsController: ListsController = new ListsController();
-
 export default {
   name: 'JoinList',
   data: function () {
@@ -44,7 +42,7 @@ export default {
       this.$validator.validate().then((valid) => {
         if (valid) {
           this.buttonDisabled = true
-          listsController.joinList(this.$route.params.id, this.displayName, this.userEmail).then(() => {
+          ListsController.joinList(this.$route.params.id, this.displayName, this.userEmail).then(() => {
             this.buttonDisabled = false
             this.$toastr.s('Yay ! You join the list')
           }, (err) => {

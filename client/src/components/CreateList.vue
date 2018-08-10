@@ -23,8 +23,6 @@
 import ListsController from '../controllers/lists'
 import Logger from 'js-logger'
 
-const listsController: ListsController = new ListsController();
-
 export default {
   name: 'CreateList',
   data: function () {
@@ -48,7 +46,7 @@ export default {
       this.$validator.validate().then((valid) => {
         if (valid) {
           this.buttonDisabled = true
-          listsController.createList(this.listName, this.displayName, this.userEmail).then(() => {
+          ListsController.createList(this.listName, this.displayName, this.userEmail).then(() => {
             this.$toastr.s('List successfully created')
             this.buttonDisabled = false
           }, (err) => {

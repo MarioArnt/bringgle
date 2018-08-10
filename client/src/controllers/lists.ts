@@ -15,28 +15,22 @@ interface CreateJoinResponse {
 }
 
 export default class ListsController {
-  socketsUtils: SocketsUtils;
-  cookiesUtils: CookiesUtils;
-  constructor () {
-    this.socketsUtils = new SocketsUtils();
-  }
-
-  public fetchList = async (id: string): Promise<void> => {
+  public static fetchList = async (id: string): Promise<void> => {
     Logger.debug('Fetching list', id)
-    this.getList(id).then(() => {
+    ListsController.getList(id).then(() => {
       Logger.debug('List successfully fetched');
       store.commit('listLoaded')
-      this.socketsUtils.createSocket()
+      SocketsUtils.createSocket()
       return Promise.resolve()
     }, (err: AxiosError) => {
       Logger.debug('Handling fetch list error');
-      const toastError = this.handleFetchListErrors(err, id);
+      const toastError = ListsController.handleFetchListErrors(err, id);
       if(!toastError) return Promise.resolve();
       else return Promise.reject(toastError)
     });
   }
   
-  private getList = async (id: string): Promise<List> => {
+  private static getList = async (id: string): Promise<List> => {
     Logger.debug('GET list request');
     if (!store.state.currentUser.id) {
       Logger.debug('User has no session');
@@ -58,7 +52,7 @@ export default class ListsController {
     return res.data
   }
 
-  private handleFetchListErrors = (err: AxiosError, listId: string): ToastError => {
+  private static handleFetchListErrors = (err: AxiosError, listId: string): ToastError => {
     if (!err.response || !err.response.data) {
       Logger.debug('No error response, server connection has been failed');
       store.commit('errorLoadingList', 500);
@@ -100,7 +94,7 @@ export default class ListsController {
     }
   }
   
-  public joinList = async (listId: string, displayName: string, userEmail: string): Promise<void> => {
+  public static joinList = async (listId: string, displayName: string, userEmail: string): Promise<void> => {
     const postAs = new User()
     const postAsCurrentUser: boolean = (displayName === store.state.currentUser.name) && (userEmail === store.state.currentUser.email)
     if (postAsCurrentUser) {
@@ -110,7 +104,7 @@ export default class ListsController {
     postAs.name = displayName
     postAs.email = userEmail
     return new Promise<void>((resolve, reject) => {
-      this.joinRequest(listId, postAs).then((data: CreateJoinResponse) => {
+      ListsController.joinRequest(listId, postAs).then((data: CreateJoinResponse) => {
         Logger.info('User joined the list', data.user)
         CookiesUtils.setUser(data.user)
         store.commit('changeCurrentUser', CookiesUtils.getUser())
@@ -118,14 +112,14 @@ export default class ListsController {
         resolve()
       }, (err: AxiosError) => {
         Logger.error('Error happened')
-        const toastError: ToastError = this.joinListErrorHandler(err, listId);
+        const toastError: ToastError = ListsController.joinListErrorHandler(err, listId);
         if(!toastError) resolve();
         else reject(toastError);
       });
     });
   }
 
-  private joinListErrorHandler = (err: AxiosError, listId: string): ToastError => {
+  private static joinListErrorHandler = (err: AxiosError, listId: string): ToastError => {
     if (!err.response || !err.response.data) {
       store.commit('errorLoadingList', 500);
       return new ToastError('Disconnect from server');
@@ -144,7 +138,7 @@ export default class ListsController {
     }
   }
   
-  private joinRequest = (listId: string, payload: User): Promise<CreateJoinResponse> => {
+  private static joinRequest = (listId: string, payload: User): Promise<CreateJoinResponse> => {
     return new Promise((resolve, reject) => {
       axios.request({
         url: 'lists/' + listId + '/join',
@@ -154,7 +148,7 @@ export default class ListsController {
     })
   }
   
-  public createList = async (listName: string, displayName: string, userEmail: string): Promise<void> => {
+  public static createList = async (listName: string, displayName: string, userEmail: string): Promise<void> => {
     const postAs = new User();
     if((displayName === store.state.currentUser.name) && (userEmail === store.state.currentUser.email)) {
       Logger.debug('Creating list as user', store.state.currentUser)
@@ -164,7 +158,7 @@ export default class ListsController {
     postAs.email = userEmail;
     const payload = new List(listName, postAs)
     return new Promise<void>((resolve, reject) => {
-      this.postList(payload).then((data) => {
+      ListsController.postList(payload).then((data) => {
         CookiesUtils.setUser(data.user)
         router.push('/list/' + data.listId)
         resolve()
@@ -174,7 +168,7 @@ export default class ListsController {
     })
   }
 
-  private postList = async (payload: List): Promise<CreateJoinResponse> => {
+  private static postList = async (payload: List): Promise<CreateJoinResponse> => {
     return new Promise<CreateJoinResponse>((resolve, reject) => {
       Logger.debug('Posting list')
       axios.request({

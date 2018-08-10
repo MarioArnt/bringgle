@@ -9,9 +9,7 @@ import { AxiosError } from '../../node_modules/axios';
 import Errors from '@/constants/errors';
 
 export default class ItemsController {
-  public constructor () {
-  }
-  public addItem = (quantity, name) => {
+  public static addItem = (quantity, name) => {
     return new Promise((resolve, reject) => {
       const item = { quantity, name }
       Logger.info('Submitting item', item)
@@ -22,22 +20,22 @@ export default class ItemsController {
       }).then(() => {
         resolve()
       }, (err: AxiosError) => {
-        const toastError = this.addItemErrorHandler(err, store.state.currentList.id)
+        const toastError = ItemsController.addItemErrorHandler(err, store.state.currentList.id)
         if(!toastError) resolve();
         else reject(err);
       })
     })
   }
   
-  private addItemErrorHandler = (err: AxiosError, listId: string): ToastError => {
+  private static addItemErrorHandler = (err: AxiosError, listId: string): ToastError => {
     if(!err.response || !err.response.data) {
       return new ToastError('Disconnect from server');
     }
     switch (err.response.data.code) {
       case Errors.code.NOT_AUTHORIZED:
-        return this.unauthorized();
+        return ItemsController.unauthorized();
       case Errors.code.RESOURCE_NOT_FOUND: {
-        return this.ressourceNotFound(err);
+        return ItemsController.ressourceNotFound(err);
       }
       default:
         Logger.error('Error happened creating item', err);
@@ -45,7 +43,7 @@ export default class ItemsController {
     }
   }
 
-  public bringItem = async (item, sub): Promise<void> => {
+  public static bringItem = async (item, sub): Promise<void> => {
     return new Promise<void>((resolve, reject) => {
       Logger.info(`User ${store.state.currentUser.name} brings item ${item.name}`)
       axios.patch(`lists/${store.state.currentList.id}/items/${item.id}`, {
@@ -56,14 +54,14 @@ export default class ItemsController {
         Logger.debug(res)
         resolve();
       }, (err: AxiosError) => {
-        const toastError = this.bringItemErrorHandler(err);
+        const toastError = ItemsController.bringItemErrorHandler(err);
         if(!toastError) resolve();
         else reject(toastError);
       });
     })
   }
 
-  private bringItemErrorHandler = (err: AxiosError): ToastError => {
+  private static bringItemErrorHandler = (err: AxiosError): ToastError => {
     if(!err.response || !err.response.data) {
       return new ToastError('Disconnect from server');
     }
@@ -76,18 +74,18 @@ export default class ItemsController {
         if (serverItem) store.commit('updateItem', serverItem)
         return new ToastError('Item status changed upstream');
       case errors.code.NOT_AUTHORIZED:
-        return this.unauthorized();
+        return ItemsController.unauthorized();
       case errors.code.RESOURCE_NOT_FOUND: {
-        return this.ressourceNotFound(err);
+        return ItemsController.ressourceNotFound(err);
       }
       case errors.code.NO_ID:
-        return this.sessionLost(err);
+        return ItemsController.sessionLost(err);
       default:
         return new ToastError('Error happened while updating item');
     }
   }
 
-  public updateItem = (id: string, quantity: number, name: string): Promise<void> => {
+  public static updateItem = (id: string, quantity: number, name: string): Promise<void> => {
     return new Promise((resolve, reject) => {
       axios.patch(`lists/${store.state.currentList.id}/items/${id}`, {
         userId: store.state.currentUser.id,
@@ -100,7 +98,7 @@ export default class ItemsController {
     })
   }
 
-  public removeItem = async (id: string): Promise<void> => {
+  public static removeItem = async (id: string): Promise<void> => {
     return new Promise<void>((resolve, reject) => {
       axios.delete(`lists/${store.state.currentList.id}/items/${id}`, {
         params: {
@@ -110,25 +108,25 @@ export default class ItemsController {
         Logger.debug(res)
         resolve();
       }, (err: AxiosError) => {
-        const toastError = this.removeItemErrorHandler(err);
+        const toastError = ItemsController.removeItemErrorHandler(err);
         if(!toastError) resolve();
         else reject(toastError);
       });
     });
   }
   
-  private removeItemErrorHandler = (err: AxiosError): ToastError => {
+  private static removeItemErrorHandler = (err: AxiosError): ToastError => {
     if(!err.response || !err.response.data) {
       return new ToastError('Disconnect from server');
     }
     switch (err.response.data.code) {
       case errors.code.NOT_AUTHORIZED:
-        return this.unauthorized();
+        return ItemsController.unauthorized();
       case errors.code.RESOURCE_NOT_FOUND: {
-        return this.ressourceNotFound(err);
+        return ItemsController.ressourceNotFound(err);
       }
       case errors.code.NO_ID:
-        return this.sessionLost(err);
+        return ItemsController.sessionLost(err);
       default:
         const msg = 'Error happened while deleting item'
         Logger.error(msg, err)
@@ -136,7 +134,7 @@ export default class ItemsController {
     }
   }
 
-  private ressourceNotFound = (err: AxiosError): ToastError => {
+  private static ressourceNotFound = (err: AxiosError): ToastError => {
     const type = !err.response.data.details ? '' : err.response.data.details.type;
     switch(type) {
       case 'list':
@@ -154,13 +152,13 @@ export default class ItemsController {
         return new ToastError('You are not authorized to contribute to this list.');
     }
   }
-  private unauthorized = (): ToastError => {
+  private static unauthorized = (): ToastError => {
     Logger.error('User not authorized to update this list')
     router.push('/')
     return new ToastError('You are not authorized to contribute to this list.');
   }
 
-  private sessionLost = (err: AxiosError): ToastError => {
+  private static sessionLost = (err: AxiosError): ToastError => {
     if (err.response.data.details.type === 'user') {
       Logger.error('User ID undefined')
       CookiesUtils.removeUser()

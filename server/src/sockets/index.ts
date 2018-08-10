@@ -25,7 +25,13 @@ export default class SocketsUtils {
 		users.set(user, tabCount);
 		socket.join(list);
 		logger.debug(`User ${user} joined list ${list}`);
+		logger.debug('----------UPDATED CONNECTIONS MAP------------');
+		[...this.connections.get(list).keys()].forEach(userId => {
+			logger.debug(`User ${userId} has now ${this.connections.get(list).get(userId)} active connections`);
+		});
+		logger.debug('---------------------------------------------');
 		logger.debug(`Now ${this.connections.get(list).size} users are connected to list ${list}`);
+		logger.debug('---------------------------------------------');
 		this.io.sockets.to(list).emit('user connected', [...this.connections.get(list).keys()]);
 	};
 
@@ -42,7 +48,13 @@ export default class SocketsUtils {
 		this.io.sockets.to(list).emit('user disconnected', [...this.connections.get(list).keys()]);
 		socket.leave(list);
 		logger.debug(`User ${user} left list ${list}`);
+		logger.debug('----------UPDATED CONNECTIONS MAP------------');
+		[...this.connections.get(list).keys()].forEach(userId => {
+			logger.debug(`User ${userId} has now ${this.connections.get(list).get(userId)} active connections`);
+		});
+		logger.debug('---------------------------------------------');
 		logger.debug(`Now ${this.connections.get(list).size} users are connected to list ${list}`);
+		logger.debug('---------------------------------------------');
 	};
 
 	public initialize = () => {
