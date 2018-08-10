@@ -48,7 +48,7 @@ export default {
             this.buttonDisabled = false
             this.$toastr.s('Yay ! You join the list')
           }, (err) => {
-            this.$toastr.e('Error happened')
+            this.$toastr.e(err.msg)
             Logger.error('Error happened while joining list', err)
             this.buttonDisabled = false
           })

@@ -441,7 +441,7 @@ export default class ListsController {
 			return Promise.reject(err);
 		}
 		if (item.responsible.get(sub.toString())) {
-			return Promise.reject(Errors.itemAlreadyBrought(item._id));
+			return Promise.reject(Errors.itemAlreadyBrought(ItemsController.itemBuilder(item)));
 		}
 		item.responsible.set(sub.toString(), user);
 		return await ItemsController.save(item, true).catch(errUpdate => Promise.reject(errUpdate)) as ItemDTO;
@@ -453,7 +453,7 @@ export default class ListsController {
 			return Promise.reject(err);
 		}
 		if (!item.responsible.get(sub.toString())) {
-			return Promise.reject(Errors.itemAlreadyCleared(item._id));
+			return Promise.reject(Errors.itemAlreadyCleared(ItemsController.itemBuilder(item)));
 		}
 		item.responsible.delete(sub.toString());
 		return await ItemsController.save(item, true).catch(errUpdate => Promise.reject(errUpdate)) as ItemDTO;

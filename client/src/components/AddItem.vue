@@ -52,6 +52,8 @@ export default {
             this.name = ''
             this.$forceUpdate()
             Logger.debug('Item added', this)
+          }, (err) => {
+            this.$toastr.e(err.msg);
           })
         } else if (valid && this.edit) {
           Logger.debug('Updating existing item')

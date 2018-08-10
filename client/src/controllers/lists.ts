@@ -23,36 +23,46 @@ export default class ListsController {
 
   public fetchList = async (id: string): Promise<void> => {
     Logger.debug('Fetching list', id)
-    this.getList(id).then((list) => {
+    this.getList(id).then(() => {
+      Logger.debug('List successfully fetched');
       store.commit('listLoaded')
       this.socketsUtils.createSocket()
       return Promise.resolve()
-    }, (err) => {
-      this.handleFetchListErrors(err, id);
+    }, (err: AxiosError) => {
+      Logger.debug('Handling fetch list error');
+      const toastError = this.handleFetchListErrors(err, id);
+      if(!toastError) return Promise.resolve();
+      else return Promise.reject(toastError)
     });
   }
   
   private getList = async (id: string): Promise<List> => {
+    Logger.debug('GET list request');
     if (!store.state.currentUser.id) {
-      const err = {code: errors.code.NOT_AUTHORIZED}
+      Logger.debug('User has no session');
+      const err = {response: {data: {code: errors.code.NO_ID, details: {type: 'user'}}}}
       return Promise.reject(err)
     }
+    Logger.debug('User has a session sending request');
     const res = await axios.get('lists/' + id, {
       params: {
         userId: store.state.currentUser.id
       }
-    }).catch((err) => {
+    }).catch((err: AxiosError) => {
+      Logger.debug('Request failed');
       return Promise.reject(err)
     })
+    Logger.debug('Request succeed');
     Logger.debug('List loaded', store.state.currentList)
     store.commit('changeCurrentList', res.data)
     return res.data
   }
 
-  private handleFetchListErrors = (err: AxiosError, listId: string) => {
+  private handleFetchListErrors = (err: AxiosError, listId: string): ToastError => {
     if (!err.response || !err.response.data) {
+      Logger.debug('No error response, server connection has been failed');
       store.commit('errorLoadingList', 500);
-      return Promise.reject(new ToastError('Disconnect from server'));
+      return new ToastError('Disconnect from server');
     }
     switch(err.response.data.code) {
       case errors.code.NO_ID: {
@@ -60,13 +70,13 @@ export default class ListsController {
         switch(type){
           case 'list':
             router.push('/');
-            return Promise.reject(new ToastError('Invalid list ID'));
+            return new ToastError('Invalid list ID');
           case 'user':
             Logger.info('Current user has no session, redirecting...', store.state.currentUser);
             router.push('/list/' + listId + '/join');
-            return Promise.resolve();
+            return null;
           default:
-            return Promise.reject(new ToastError());
+            return new ToastError();
         }
       }
       case errors.code.RESOURCE_NOT_FOUND: {
@@ -75,18 +85,18 @@ export default class ListsController {
           case 'list':
             Logger.error('404: List not found');
             store.commit('errorLoadingList', 404);
-            return Promise.reject(new ToastError('Ooops it seems this list does not exist'));
+            return new ToastError('Ooops it seems this list does not exist');
         }
       }
       case errors.code.NOT_AUTHORIZED: {
         Logger.info('Current user is not an attendee, redirecting...', store.state.currentUser)
         router.push('/list/' + listId + '/join')
-        return Promise.resolve()
+        return null;
       }
       default:
         Logger.error('Error happened while loading the list', err);
         store.commit('errorLoadingList', 500);
-        return Promise.reject(new ToastError());
+        return new ToastError('Error happened while loading the list');
     }
   }
   
@@ -106,23 +116,32 @@ export default class ListsController {
         store.commit('changeCurrentUser', CookiesUtils.getUser())
         router.push('/list/' + listId)
         resolve()
-      }, (err) => {
+      }, (err: AxiosError) => {
         Logger.error('Error happened')
-        if (!err.response) reject(err)
-        switch (err.response.data.code) {
-          case errors.code.USER_ALREADY_IN_LIST:
-            Logger.info('User already attend the list redirecting')
-            router.push('/list/' + listId)
-            return resolve()
-          case errors.code.EMAIL_ALREADY_TAKEN:
-            Logger.info('Email already taken');
-            router.push(`/list/${listId}/recovery?listName=${encodeURIComponent(err.response.data.details.listName)}&email=${encodeURIComponent(err.response.data.details.email)}`);
-            return reject(err);
-          default:
-            return reject(err);
-        }
+        const toastError: ToastError = this.joinListErrorHandler(err, listId);
+        if(!toastError) resolve();
+        else reject(toastError);
       });
     });
+  }
+
+  private joinListErrorHandler = (err: AxiosError, listId: string): ToastError => {
+    if (!err.response || !err.response.data) {
+      store.commit('errorLoadingList', 500);
+      return new ToastError('Disconnect from server');
+    }
+    switch (err.response.data.code) {
+      case errors.code.USER_ALREADY_IN_LIST:
+        Logger.info('User already attend the list redirecting')
+        router.push('/list/' + listId)
+        return null;
+      case errors.code.EMAIL_ALREADY_TAKEN:
+        Logger.info('Email already taken');
+        router.push(`/list/${listId}/recovery?listName=${encodeURIComponent(err.response.data.details.listName)}&email=${encodeURIComponent(err.response.data.details.email)}`);
+        return null;
+      default:
+        return new ToastError();
+    }
   }
   
   private joinRequest = (listId: string, payload: User): Promise<CreateJoinResponse> => {
@@ -131,7 +150,7 @@ export default class ListsController {
         url: 'lists/' + listId + '/join',
         method: 'post',
         data: payload
-      }).then((res) => resolve(res.data), (err) => reject(err))
+      }).then((res) => resolve(res.data), (err: AxiosError) => reject(err))
     })
   }
   
@@ -149,21 +168,12 @@ export default class ListsController {
         CookiesUtils.setUser(data.user)
         router.push('/list/' + data.listId)
         resolve()
-      }, (err) => {
+      }, (err: AxiosError) => {
         reject(err)
       })
     })
   }
 
-  public static inviteAttendee = async(listId: string, email: string): Promise<void> => {
-    return new Promise<void>((resolve, reject) => {
-      axios.post(`lists/${listId}/invite`, {
-        userId: store.state.currentUser.id,
-        email
-      }).then(() => resolve(), (err) => reject(err))
-    })
-  }
-  
   private postList = async (payload: List): Promise<CreateJoinResponse> => {
     return new Promise<CreateJoinResponse>((resolve, reject) => {
       Logger.debug('Posting list')
@@ -178,6 +188,15 @@ export default class ListsController {
         Logger.debug('error', err.response)
         return reject(err)
       })
+    })
+  }
+
+  public static inviteAttendee = async(listId: string, email: string): Promise<void> => {
+    return new Promise<void>((resolve, reject) => {
+      axios.post(`lists/${listId}/invite`, {
+        userId: store.state.currentUser.id,
+        email
+      }).then(() => resolve(), (err) => reject(err))
     })
   }
 }

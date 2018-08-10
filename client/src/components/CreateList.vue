@@ -52,7 +52,7 @@ export default {
             this.$toastr.s('List successfully created')
             this.buttonDisabled = false
           }, (err) => {
-            this.$toastr.e('Error happened')
+            this.$toastr.e('Error happened while creating list')
             Logger.error('Error happened while creating list', err)
             this.buttonDisabled = false
           })

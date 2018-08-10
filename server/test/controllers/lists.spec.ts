@@ -960,14 +960,13 @@ describe('List Controller', () => {
       const itemId: string = list.items[0]
       testFactory.bringRandomSubItem(list, itemId).then((brought) => {
         const data: any = { userId: list.owner, action: actions.BRING_ITEM.code, sub: brought.sub }
-        const expectedError: ErrorModel = errors.itemAlreadyBrought(itemId)
         requester
         .patch(`/api/lists/${list._id}/items/${itemId}`)
         .send(data)
         .end((err: any, res: ChaiHttp.Response) => {
-          res.should.have.status(expectedError.status)
-          expectedError.details = expectedError.details.toString()
-          res.body.should.be.eql(expectedError)
+          res.should.have.status(400)
+          res.body.code.should.be.eql(errors.code.ITEM_ALREADY_BROUGHT)
+          res.body.details.id.should.be.eql(itemId.toString())
 					if (!brought.alreadyBrought)testFactory.clearSubItem(itemId, brought.sub).then(() => done());
 					else done();
         })
@@ -1038,14 +1037,13 @@ describe('List Controller', () => {
       const itemId: string = list.items[0]
       const data: any = { userId: list.owner, action: actions.CLEAR_ITEM.code, sub: 0 }
       testFactory.clearSubItem(itemId, 0).then((alreadyCleared) => {
-        const expectedError = errors.itemAlreadyCleared(itemId)
         requester
           .patch(`/api/lists/${list._id}/items/${itemId}`)
           .send(data)
           .end((err: any, res: ChaiHttp.Response) => {
-            res.should.have.status(expectedError.status)
-            expectedError.details = expectedError.details.toString()
-						res.body.should.be.eql(expectedError)
+            res.should.have.status(400)
+            res.body.code.should.be.eql(errors.code.ITEM_ALREADY_CLEARED)
+            res.body.details.id.should.be.eql(itemId.toString())
 						if (!alreadyCleared) testFactory.bringSubItem(list, itemId, data.sub).then(() => done());
 						else done();
           })

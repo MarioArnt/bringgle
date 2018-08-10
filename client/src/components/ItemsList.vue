@@ -58,7 +58,9 @@ export default {
   },
   methods: {
     bringItem (item, sub) {
-      itemsController.bringItem(item, sub)
+      itemsController.bringItem(item, sub).catch((err) => {
+        this.$toastr.e(err.msg);
+      })
     },
     openItemDetails (item) {
       this.selectedItem = item
@@ -70,7 +72,9 @@ export default {
     },
     removeItem (item) {
       Logger.info(`User ${this.$store.state.currentUser.name} remove item ${item.name}`)
-      itemsController.removeItem(item.id)
+      itemsController.removeItem(item.id).catch((err => {
+        this.$toastr.e(err.msg);
+      }))
     }
   }
 }
