@@ -8,7 +8,7 @@
     #new-item
       md-field(:class="{'md-invalid': errors.has('item name')}")
         label Item
-        md-input(v-validate="'required'" name="item name" v-model="name" v-on:keyup.enter="submitItem()")
+        md-input(v-validate="'required'" name="item name" v-model="name" v-on:keyup.enter="submitItem()" maxlength="50")
         span.md-error {{ errors.first('item name') }}
     #add-item
       md-button.md-icon-button(v-on:click="submitItem()")

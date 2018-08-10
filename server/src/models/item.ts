@@ -23,7 +23,8 @@ const Schema = Mongoose.Schema;
 const itemSchema = new Schema({
 	name: {
 		type: String,
-		required: true
+		required: true,
+		maxlength: 50
 	},
 	quantity: {
 		type: Number,

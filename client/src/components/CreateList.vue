@@ -4,7 +4,7 @@
     form
       md-field(:class="{'md-invalid': errors.has('list name')}")
         label List Name
-        md-input(v-validate="'required'" v-model="listName" placeholder='Awesome List' id='list-name' name="list name" type='text' class='validate' v-on:keyup.enter="sendData()" required)
+        md-input(v-validate="'required'" v-model="listName" placeholder='Awesome List' id='list-name' name="list name" type='text' class='validate' v-on:keyup.enter="sendData()" required maxlength="25")
         span.md-error {{ errors.first('list name') }}
       md-field(:class="{'md-invalid': errors.has('email')}")
         label Email
@@ -12,7 +12,7 @@
         span.md-error {{ errors.first('email') }}
       md-field(:class="{'md-invalid': errors.has('display name')}")
         label Display Name
-        md-input(v-validate="'required'" v-model="displayName" placeholder='John Doe' id='user-name' name="display name" type='text' class='validate' v-on:keyup.enter="sendData()" required)
+        md-input(v-validate="'required'" v-model="displayName" placeholder='John Doe' id='user-name' name="display name" type='text' class='validate' v-on:keyup.enter="sendData()" required maxlength="25")
         span.md-error {{ errors.first('display name') }}
       md-button.md-raised.md-accent(:disabled="errors.any() || buttonDisabled" v-on:click='sendData()')
         i.fa.fa-plus
