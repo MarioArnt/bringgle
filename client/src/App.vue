@@ -49,4 +49,12 @@ export default {
 .white {
   color: white;
 }
+.md-xsmall-show {
+  display: none;
+}
+@media screen and (max-width: 600px) {
+  .md-xsmall-show {
+    display: block;
+  }
+}
 </style>
