@@ -3,20 +3,26 @@
     error-page(v-if="$store.state.listStatus.error" :status="$store.state.listStatus.error" type="List")
     .list-content.md-layout(v-if="$store.state.listStatus.loaded")
       .md-layout-item.md-size-100
-        h1 {{  $store.state.currentList.title }}
-      #items.md-layout-item.md-xsmall-size-100.md-small-size-66
+        h1.ellipsis {{  $store.state.currentList.title }}
+      #items.md-layout-item.md-xsmall-size-100.md-small-size-66.md-medium-size-66.md-large-size-75.md-xlarge-size-80
         h3 Items
         items-list
-      #attendees.md-layout-item.md-xsmall-size-100.md-small-size-33
+      #attendees.md-layout-item.md-xsmall-size-100.md-small-size-33.md-medium-size-33.md-large-size-25.md-xlarge-size-20
         h3 Attendees
         div.attendee(v-for="attendee in $store.state.currentList.attendees")
             md-card(md-with-hover)
-              md-ripple
-                md-card-header
-                  div.md-title {{ attendee.name }}
-                  div.md-subhead
-                    div.circle(:class="attendee.connected ? 'green' : 'red'")
-                    | {{ attendee.connected ? 'Online' : 'Offline' }}
+              md-card-header
+                div.md-title.ellipsis {{ attendee.name }}
+                div.md-subhead
+                  div.circle(:class="attendee.connected ? 'green' : 'red'")
+                  | {{ attendee.connected ? 'Online' : 'Offline' }}
+              md-card-actions
+                md-button.md-dense.md-primary
+                  i.fa.fa-check
+                  span Items
+                md-button.md-dense.md-primary
+                  i.fa.fa-comments
+                  span Chat
         add-attendee
 </template>
 <script lang="ts">

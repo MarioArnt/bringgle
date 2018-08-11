@@ -79,13 +79,16 @@ export default {
 </script>
 
 <style lang="scss" scoped>
+  $menu-size: 40px;
   .brought-by {
     color: lightslategrey;
   }
   #item-checkbox {
-    flex: 1
+    flex: 1;
+    overflow: hidden;
   }
   #item-menu {
-    width: 40px
+    width: $menu-size;
   }
+
 </style>

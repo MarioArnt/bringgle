@@ -57,4 +57,9 @@ export default {
     display: block;
   }
 }
+.ellipsis {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 </style>
