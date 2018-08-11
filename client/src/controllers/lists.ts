@@ -8,6 +8,7 @@ import errors, { ToastError } from '@/constants/errors'
 import User from '@/models/user';
 import List from '@/models/list';
 import { AxiosError } from '../../node_modules/axios';
+import moment from 'moment';
 
 interface CreateJoinResponse {
   listId: string;
@@ -26,7 +27,7 @@ export default class ListsController {
       Logger.debug('Handling fetch list error');
       const toastError = ListsController.handleFetchListErrors(err, id);
       if(!toastError) return Promise.resolve();
-      else return Promise.reject(toastError)
+      else return Promise.reject(toastError);
     });
   }
   

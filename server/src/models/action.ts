@@ -3,8 +3,9 @@ import {UserModel, UserDTO} from './user';
 import {SeenModel, SeenDTO} from './seen';
 
 export type ActionModel = Mongoose.Document & {
-	action: string;
+	code: string;
 	by: UserModel;
+	date: Date;
 	itemName: string;
 	oldValue: string;
 	newValue: string;
@@ -12,8 +13,10 @@ export type ActionModel = Mongoose.Document & {
 };
 
 export interface ActionDTO {
-	action: string;
+	id: string;
+	code: string;
 	by: UserDTO;
+	date: Date;
 	itemName: string;
 	oldValue: string;
 	newValue: string;
@@ -23,7 +26,7 @@ export interface ActionDTO {
 const Schema = Mongoose.Schema;
 
 const actionSchema = new Schema({
-	action: {
+	code: {
 		type: String,
 		maxlength: 4,
 		required: true
@@ -33,7 +36,11 @@ const actionSchema = new Schema({
 		required: true,
 		ref: 'user'
 	},
-	item: {
+	date: {
+		type: Date,
+		requireed: true
+	},
+	itemName: {
 		type: String,
 		maxlength: 128
 	},

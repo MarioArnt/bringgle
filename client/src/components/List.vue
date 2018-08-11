@@ -5,7 +5,7 @@
       #list-attendees.md-xsmall-hide.md-elevation-7.md-layout-item.md-xsmall-size-100.md-small-size-33.md-medium-size-33.md-large-size-25.md-xlarge-size-20
         md-list.md-double-line
           md-subheader Attendees
-          md-list-item(v-for="attendee in $store.state.currentList.attendees")
+          md-list-item(v-for="attendee in $store.state.currentList.attendees" :key="attendee.id")
             .md-list-item-text
               span
                 .circle(:class="attendee.connected ? 'green' : 'red'")
@@ -23,6 +23,8 @@
           md-tab(v-if="xsmall" id="tab-attendees" md-label="Attendees")
           md-tab(id="tab-messages" md-label="Messages")
           md-tab(id="tab-history" md-label="History")
+            history
+
 
 </template>
 <script lang="ts">
@@ -30,11 +32,18 @@ import ItemsList from '@/components/ItemsList'
 import AddAttendee from '@/components/AddAttendee'
 import ListsController from '@/controllers/lists'
 import ErrorPage from '@/components/ErrorPage'
+import History from '@/components/History'
 import SocketsUtils from '../sockets';
+import Vue from 'vue';
 
-export default {
+export default Vue.extend({
+  data: function () {
+    return {
+      xsmall: false
+     }
+  },
   name: 'List',
-  components: { ItemsList, AddAttendee, ErrorPage },
+  components: { ItemsList, AddAttendee, ErrorPage, History },
   beforeCreate: function () {
     this.$store.commit('clearListStatus')
   },
@@ -46,7 +55,7 @@ export default {
   beforeDestroy: function () {
     SocketsUtils.destroySocket();
   }
-}
+})
 </script>
 
 <style lang="scss" scoped>

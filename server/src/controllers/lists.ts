@@ -2,6 +2,7 @@ import logger from '../logger';
 import {Request, Response} from 'express';
 import SocketsUtils from '../sockets';
 import Errors, {ErrorModel} from '../constants/errors';
+import Action, {ActionModel, ActionDTO} from '../models/action';
 import User, {UserModel, UserDTO} from '../models/user';
 import List, {ListModelLazy, ListModelEager, ListDTO} from '../models/list';
 import ListItem, {ItemModel, ItemDTO} from '../models/item';
@@ -12,6 +13,8 @@ import {Document} from 'mongoose';
 import MailsController from '../mails';
 import MessagesController from './messages';
 import ActionsController from './actions';
+import Message from '../models/message';
+import Seen from '../models/seen';
 
 export interface CreateJoinResponse {
 	listId: string;
@@ -83,7 +86,7 @@ export default class ListsController {
 		});
 	};
 
-	public static createList = (req: Request, res: Response): Response => {
+	public createList = (req: Request, res: Response): Response => {
 		const listName = req.body.title;
 		const userName = req.body.owner ? req.body.owner.name : null;
 		const userEmail = req.body.owner ? req.body.owner.email : null;
@@ -93,7 +96,7 @@ export default class ListsController {
 			return res.status(err.status || 500).json(err);
 		}
 		if (!userId) {
-			ListsController.createUserAndList(listName, userName, userEmail).then(createdList => {
+			this.createUserAndList(listName, userName, userEmail).then(createdList => {
 				MailsController.sendListCreated(createdList.listId, createdList.listName, createdList.user.name, createdList.user.email);
 				return res.json(createdList);
 			}, errCreation => {
@@ -101,7 +104,7 @@ export default class ListsController {
 			});
 		} else {
 			UsersController.findById(userId).then((user: UserModel) => {
-				ListsController.createListRequest(listName, user).then(createdList => {
+				this.createListRequest(listName, user).then(createdList => {
 					MailsController.sendListCreated(createdList.listId, createdList.listName, createdList.user.name, createdList.user.email);
 					return res.json(createdList);
 				}, errCreation => {
@@ -109,7 +112,7 @@ export default class ListsController {
 				});
 			}, errFindUser => {
 				if (errFindUser.code === Errors.code.RESOURCE_NOT_FOUND) {
-					ListsController.createUserAndList(listName, userName, userEmail).then(createdList => {
+					this.createUserAndList(listName, userName, userEmail).then(createdList => {
 						MailsController.sendListCreated(createdList.listId, createdList.listName, createdList.user.name, createdList.user.email);
 						return res.json(createdList);
 					}, errCreation => {
@@ -123,7 +126,7 @@ export default class ListsController {
 		}
 	};
 
-	private static createUserAndList = async (listName: string, userName: string, userEmail: string): Promise<CreateJoinResponse> => {
+	private createUserAndList = async (listName: string, userName: string, userEmail: string): Promise<CreateJoinResponse> => {
 		let err = ListsController.checkRequired('displayName', userName);
 		if (!err) {
 			err = ListsController.checkRequired('userEmail', userEmail);
@@ -136,14 +139,24 @@ export default class ListsController {
 			email: userEmail
 		});
 		const user = await UsersController.save(owner).catch(errSaving => Promise.reject(errSaving)) as UserModel;
-		return ListsController.createListRequest(listName, user);
+		return this.createListRequest(listName, user);
 	};
 
-	private static createListRequest = async (name: string, owner: UserModel): Promise<CreateJoinResponse> => {
+	private createListRequest = async (name: string, owner: UserModel): Promise<CreateJoinResponse> => {
+		const listCreated = new Action({
+			code: Actions.CREATED_LIST.code,
+			by: owner,
+			date: Date.now(),
+			seen: []
+		});
+		const savedAction: ActionModel = await ActionsController.save(listCreated).catch(err => Promise.reject(err));
 		const list = new List({
 			title: name,
 			owner,
-			attendees: [owner]
+			attendees: [owner],
+			items: [],
+			history: [savedAction],
+			messages: []
 		});
 		const savedList: ListModelLazy = await ListsController.save(list).catch(err => Promise.reject(err));
 		return {
@@ -229,11 +242,22 @@ export default class ListsController {
 		if (list.attendees.indexOf(user._id) >= 0) {
 			return Promise.reject(Errors.userAlreadyInList(list._id, user._id));
 		}
+		const joinedList = new Action({
+			code: Actions.JOINED_LIST.code,
+			by: user,
+			date: Date.now(),
+			seen: []
+		});
+		const joinAction: ActionModel = await ActionsController.save(joinedList).catch(err => {
+			return Promise.reject(err);
+		});
 		list.attendees.push(user._id);
+		list.history.push(joinAction._id);
 		const savedList: ListModelLazy = await ListsController.save(list).catch(err => {
 			logger.error(err);
 			return Promise.reject(err);
 		});
+		this.socketsUtils.emitAction(list._id, ActionsController.actionBuilder(joinAction));
 		return {
 			listId: savedList._id,
 			listName: savedList.title,
@@ -253,10 +277,24 @@ export default class ListsController {
 				}
 			};
 			if (eager) {
-				return List.findById(id).populate('owner').populate('attendees').populate('items').populate({
-					path: 'items',
-					populate: {path: 'responsible'}
-				}).exec(callback);
+				return List.findById(id)
+					.populate({path: 'owner', model: User})
+					.populate({path: 'attendees', model: User})
+					.populate({
+						path: 'items',
+						model: ListItem,
+						populate: {path: 'responsible', model: User}
+					})
+					.populate({
+						path: 'history',
+						model: Action,
+						populate: [
+							{path: 'by', model: User},
+							{path: 'seen', model: Seen}
+						]
+					})
+					.populate({path: 'messages', model: Message})
+					.exec(callback);
 			}
 			return List.findById(id, callback);
 		});
@@ -351,12 +389,21 @@ export default class ListsController {
 			author,
 			responsible: new Map<number, UserModel>()
 		});
+		const itemAdded = new Action({
+			code: Actions.ADDED_ITEM.code,
+			by: author,
+			itemName: name,
+			date: Date.now()
+		});
+		const savedAction = await ActionsController.save(itemAdded).catch(errItem => Promise.reject(errItem));
 		const savedItem = await ItemsController.save(item).catch(errItem => Promise.reject(errItem)) as ItemModel;
-		return this.addItemToList(list, savedItem).catch(errSave => Promise.reject(errSave));
+		this.socketsUtils.emitAction(list._id, ActionsController.actionBuilder(savedAction));
+		return this.addItemToList(list, savedItem, savedAction).catch(errSave => Promise.reject(errSave));
 	};
 
-	private addItemToList = async (list: ListModelLazy, item: ItemModel): Promise<ItemModel> => {
+	private addItemToList = async (list: ListModelLazy, item: ItemModel, addAction: ActionModel): Promise<ItemModel> => {
 		return new Promise<ItemModel>((resolve, reject) => {
+			list.history.push(addAction._id);
 			list.items.push(item._id);
 			list.save(err => {
 				if (err) {
@@ -410,13 +457,13 @@ export default class ListsController {
 			case Actions.CLEAR_ITEM.code:
 				return this.clearItem(item, payload.sub);
 			case Actions.UPDATE_QUANTITY_AND_NAME.code:
-				return this.updateQuantityAndName(item, payload.newName, payload.newQuantity);
+				return this.updateQuantityAndName(list, user, item, payload.newName, payload.newQuantity);
 			default:
 				return Promise.reject(Errors.invalidAction(payload.action));
 		}
 	};
 
-	private updateQuantityAndName = async (item: ItemModel, newName: string, newQuantity: any): Promise<ItemDTO> => {
+	private updateQuantityAndName = async (list: ListModelLazy, user: UserModel, item: ItemModel, newName: string, newQuantity: any): Promise<ItemDTO> => {
 		let err = ListsController.checkRequired('name', newName);
 		if (!err) {
 			err = ListsController.checkQuantity(newQuantity);
@@ -424,6 +471,10 @@ export default class ListsController {
 		if (err) {
 			return Promise.reject(err);
 		}
+		const nameHasChanged: boolean = newName !== item.name;
+		const oldName: string = item.name;
+		const quantityHasChanged: boolean = newQuantity !== item.quantity;
+		const oldQuantity: number = item.quantity;
 		item.name = newName;
 		item.quantity = newQuantity;
 		if (item.responsible.size > newQuantity) {
@@ -437,7 +488,44 @@ export default class ListsController {
 			}
 			logger.debug(JSON.stringify(item.responsible));
 		}
-		return await ItemsController.save(item, true).catch(errUpdate => Promise.reject(errUpdate)) as ItemDTO;
+		const savedItem = await ItemsController.save(item, true).catch(errUpdate => Promise.reject(errUpdate)) as ItemDTO;
+		if (nameHasChanged) {
+			await this.createNameHasChangedAction(list, user, oldName, newName);
+		}
+		if (quantityHasChanged) {
+			await this.createQuantityHasChangedAction(list, user, oldQuantity, newQuantity, item.name);
+		}
+		await ListsController.save(list).catch(errUpdate => Promise.reject(errUpdate));
+		return savedItem;
+	};
+
+	private createNameHasChangedAction = async (list: ListModelLazy, author: UserModel, oldName: string, newName: string): Promise<void> => {
+		const changeName = new Action({
+			code: Actions.UPDATED_ITEM_NAME.code,
+			by: author,
+			oldValue: oldName,
+			newValue: newName,
+			date: Date.now()
+		});
+		const savedAction = await ActionsController.save(changeName).catch(errItem => Promise.reject(errItem));
+		list.history.push(savedAction._id);
+		this.socketsUtils.emitAction(list._id, ActionsController.actionBuilder(savedAction));
+		return Promise.resolve();
+	};
+
+	private createQuantityHasChangedAction = async (list: ListModelLazy, author: UserModel, oldQuantity: number, newQuantity: number, itemName: string): Promise<void> => {
+		const changeName = new Action({
+			code: Actions.UPDATED_ITEM_QUANTITY.code,
+			by: author,
+			itemName,
+			oldValue: oldQuantity,
+			newValue: newQuantity,
+			date: Date.now()
+		});
+		const savedAction = await ActionsController.save(changeName).catch(errItem => Promise.reject(errItem));
+		list.history.push(savedAction._id);
+		this.socketsUtils.emitAction(list._id, ActionsController.actionBuilder(savedAction));
+		return Promise.resolve();
 	};
 
 	private bringItem = async (item: ItemModel, sub: number, user: UserModel): Promise<ItemDTO> => {
@@ -498,7 +586,18 @@ export default class ListsController {
 			return Promise.reject(err);
 		}
 		await this.removeItemFromList(list, item).catch(errRemove => Promise.reject(errRemove));
-		return await ItemsController.delete(item._id).catch(errRemove => Promise.reject(errRemove)) as ItemModel;
+		const deletedItem = await ItemsController.delete(item._id).catch(errRemove => Promise.reject(errRemove)) as ItemModel;
+		const removeItem = new Action({
+			code: Actions.REMOVED_ITEM.code,
+			by: user,
+			itemName: item.name,
+			date: Date.now()
+		});
+		const savedAction = await ActionsController.save(removeItem).catch(errItem => Promise.reject(errItem));
+		list.history.push(savedAction._id);
+		await ListsController.save(list).catch(errUpdate => Promise.reject(errUpdate));
+		this.socketsUtils.emitAction(listId, ActionsController.actionBuilder(savedAction));
+		return deletedItem;
 	};
 
 	private removeItemFromList = async (list: ListModelLazy, item: ItemModel): Promise<void> => {
@@ -523,7 +622,7 @@ export default class ListsController {
 		});
 	};
 
-	public static invite = (req: Request, res: Response): Response => {
+	public invite = (req: Request, res: Response): Response => {
 		let err = ListsController.checkId(ListsController.uncastFalsyRequestParamter(req.params.id), 'list');
 		if (!err) {
 			err = ListsController.checkRequired('email', req.body.email);
@@ -537,22 +636,33 @@ export default class ListsController {
 		if (err) {
 			return res.status(err.status).send(err);
 		}
-		ListsController.findById(req.params.id).then((list: ListModelLazy) => {
-			UsersController.findById(req.body.userId).then((user: UserModel) => {
-				err = ListsController.checkAuthorized(list, user._id, 'invite attendee');
-				if (err) {
-					return res.status(err.status).send(err);
-				}
-				MailsController.invite(list._id, list.title, req.body.email, user.name).then(() => {
-					return res.status(200).send(req.body.email);
-					}, errSend => {
-					return res.status(errSend.status).send(errSend);
-					});
-				}, errUser => {
-					return res.status(errUser.status).send(errUser);
-				});
-			}, errList => {
-				return res.status(errList.status).send(errList);
+		this.inviteUser(req.params.id, req.body.userId, req.body.email).then((action: ActionDTO) => {
+			this.socketsUtils.emitAction(req.params.id, action);
+			return res.status(200).send(req.body.email);
+		}, errInvite => {
+			return res.status(errInvite.status).send(errInvite);
 		});
+	};
+
+	private inviteUser = async (listId: string, userId: string, email: string): Promise<ActionDTO> => {
+		const list = await ListsController.findById(listId).catch(err => Promise.reject(err)) as ListModelLazy;
+		const user = await UsersController.findById(userId).catch(err => Promise.reject(err)) as UserModel;
+		await MailsController.invite(list._id, list.title, email, user.name).catch(err => Promise.reject(err));
+		const action = await this.createUserInvitedAction(list, user, email).catch(err => Promise.reject(err));
+		return ActionsController.actionBuilder(action);
+	};
+
+	private createUserInvitedAction = async (list: ListModelLazy, user: UserModel, email: string): Promise<ActionModel> => {
+		const pattern = /^(.+)@/;
+		const userInvited = new Action({
+			code: Actions.INVITED_USER.code,
+			by: user,
+			newValue: !email.match(pattern) ? null : email.match(pattern)[1],
+			date: Date.now()
+		});
+		const savedAction = await ActionsController.save(userInvited).catch(errItem => Promise.reject(errItem));
+		list.history.push(savedAction._id);
+		await ListsController.save(list).catch(errUpdate => Promise.reject(errUpdate));
+		return savedAction;
 	};
 }

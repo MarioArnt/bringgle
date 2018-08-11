@@ -33,6 +33,8 @@ export type ListModelLazy = Mongoose.Document & {
 	owner: string;
 	attendees: string[];
 	items: string[];
+	messages: string[];
+	history: string[];
 	created: Date;
 };
 
