@@ -1,5 +1,5 @@
 <template lang='pug'>
-  .join-list
+  .join-list.main-content
     h1 Join list
     form
       md-field(:class="{'md-invalid': errors.has('email')}")

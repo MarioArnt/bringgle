@@ -1,5 +1,5 @@
 <template lang='pug'>
-  .create-list
+  .create-list.main-content
     h1 Create new list
     form
       md-field(:class="{'md-invalid': errors.has('list name')}")

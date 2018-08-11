@@ -56,5 +56,8 @@ export default Vue.extend({
 #invite-button {
   margin-left: 0;
 }
+#invite-attendee {
+  padding-left: 20px;
+}
 </style>
 

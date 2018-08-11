@@ -1,5 +1,5 @@
 <template lang="pug">
-  .error-page
+  .error-page.main-content
     .error-circle.md-elevation-6
       .inner-circle 
         h2.error-status {{ status }}
