@@ -77,4 +77,7 @@ export default {
 #list-content {
   padding: 20px;
 }
+#list-title {
+  height: 28px;
+}
 </style>

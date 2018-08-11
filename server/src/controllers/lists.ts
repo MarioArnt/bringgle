@@ -10,6 +10,8 @@ import ItemsController from './items';
 import Actions from '../constants/actions';
 import {Document} from 'mongoose';
 import MailsController from '../mails';
+import MessagesController from './messages';
+import ActionsController from './actions';
 
 export interface CreateJoinResponse {
 	listId: string;
@@ -299,9 +301,12 @@ export default class ListsController {
 		return {
 			id: list._id,
 			title: list.title,
+			description: list.description,
 			owner: UsersController.userBuilder(list.owner),
 			attendees: list.attendees.map(att => UsersController.userBuilder(att)),
 			items: list.items.map(it => ItemsController.itemBuilder(it)),
+			messages: list.messages.map(msg => MessagesController.messageBuilder(msg)),
+			history: list.history.map(action => ActionsController.actionBuilder(action)),
 			created: list.created
 		};
 	};
