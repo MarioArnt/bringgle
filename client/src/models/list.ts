@@ -1,7 +1,17 @@
 import User from '@/models/user'
-import Item from '@/models/item'
-import Action from '@/models/action'
-import Message from '@/models/message'
+import Item, { ItemDTO } from '@/models/item'
+import Action, { ActionDTO } from '@/models/action'
+import Message, { MessageDTO } from '@/models/message'
+
+export interface ListDTO {
+  id: string;
+  title: string;
+  owner: User;
+  attendees: User[];
+  items: ItemDTO[];
+  history: ActionDTO[];
+  messages: MessageDTO[];
+}
 
 export default class List {
   id: string;

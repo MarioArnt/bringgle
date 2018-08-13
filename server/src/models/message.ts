@@ -1,5 +1,5 @@
 import Mongoose from 'mongoose';
-import {UserModel, UserDTO} from './user';
+import {UserModel} from './user';
 import {SeenModel, SeenDTO} from './seen';
 
 export type MessageModel = Mongoose.Document & {
@@ -11,8 +11,8 @@ export type MessageModel = Mongoose.Document & {
 };
 
 export interface MessageDTO {
-	from: UserDTO;
-	to: UserDTO;
+	from: string;
+	to: string;
 	msg: string;
 	sent: Date;
 	seen: SeenDTO[];

@@ -1,5 +1,4 @@
 import {ActionModel, ActionDTO} from '../models/action';
-import UsersController from './users';
 import SeensController from './seens';
 import Errors from '../constants/errors';
 import {Document} from 'mongoose';
@@ -9,7 +8,7 @@ export default class ActionsController {
 		return {
 			id: action.id,
 			code: action.code,
-			by: UsersController.userBuilder(action.by),
+			by: action.by._id,
 			date: action.date,
 			itemName: action.itemName,
 			oldValue: action.oldValue,

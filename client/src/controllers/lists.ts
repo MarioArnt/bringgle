@@ -6,9 +6,12 @@ import CookiesUtils from '@/cookies'
 import router from '@/router'
 import errors, { ToastError } from '@/constants/errors'
 import User from '@/models/user';
-import List from '@/models/list';
+import List, { ListDTO } from '@/models/list';
+import Item, { ItemDTO } from '@/models/item';
 import { AxiosError } from '../../node_modules/axios';
 import moment from 'moment';
+import Action, { ActionDTO } from '@/models/action';
+import Message, { MessageDTO } from '@/models/message';
 
 interface CreateJoinResponse {
   listId: string;
@@ -18,10 +21,14 @@ interface CreateJoinResponse {
 export default class ListsController {
   public static fetchList = async (id: string): Promise<void> => {
     Logger.debug('Fetching list', id)
-    ListsController.getList(id).then(() => {
+    ListsController.getList(id).then((listDTO: ListDTO) => {
       Logger.debug('List successfully fetched');
-      store.commit('listLoaded')
-      SocketsUtils.createSocket()
+      Logger.time('Building list');
+      const list = ListsController.populateList(listDTO);
+      Logger.timeEnd('Building list');
+      store.commit('changeCurrentList', list);
+      store.commit('listLoaded');
+      SocketsUtils.createSocket();
       return Promise.resolve()
     }, (err: AxiosError) => {
       Logger.debug('Handling fetch list error');
@@ -30,8 +37,76 @@ export default class ListsController {
       else return Promise.reject(toastError);
     });
   }
+
+  private static populateList = (list: ListDTO): List => {
+    const attendeesMap: Map<string, User> = ListsController.createAttendeesMap(list.attendees);
+    const builtList = new List(list.title, list.owner, list.attendees);
+    builtList.id = list.id;
+    builtList.items = ListsController.populateItemResponsible(list.items, attendeesMap);
+    builtList.history = ListsController.populateHistory(list.history, attendeesMap);
+    builtList.messages = ListsController.populateMessages(list.messages, attendeesMap);
+    return builtList;
+  }
+
+  private static populateItemResponsible = (items: ItemDTO[], attendeesMap: Map<string, User>) => {
+    const built: Item[] = [];
+    items.forEach((item => {
+      const builtItem = new Item();
+      builtItem.id = item.id;
+      builtItem.name = item.name;
+      builtItem.quantity = item.quantity;
+      builtItem.responsible = new Map<number, User>();
+      builtItem.created = item.created;
+      Object.keys(item.responsible).forEach(key => {
+        builtItem.responsible.set(Number(key), attendeesMap.get(item.responsible[key]));
+      })
+      built.push(builtItem);
+    }));
+    return built;
+  };
+
+  private static populateHistory = (actions: ActionDTO[], attendeesMap: Map<string, User>): Action[] => {
+    const built: Action[] = [];
+    actions.forEach(action => {
+      const builtAction = new Action(action.code, attendeesMap.get(action.by), action.date);
+      builtAction.itemName = action.itemName;
+      builtAction.oldValue = action.oldValue;
+      builtAction.newValue = action.newValue;
+      action.seen.forEach((seen) => {
+        builtAction.seen.push({
+          by: attendeesMap.get(seen.by),
+          date: seen.date
+        });
+      });
+      built.push(builtAction);
+    });
+    return built;
+  }
+
+  private static populateMessages = (messages: MessageDTO[], attendeesMap: Map<string, User>) => {
+    const built: Message[] = [];
+    messages.forEach(msg => {
+      const builtMessage = new Message(attendeesMap.get(msg.from), attendeesMap.get(msg.to), msg.msg, msg.sent);
+      msg.seen.forEach((seen) => {
+        builtMessage.seen.push({
+          by: attendeesMap.get(seen.by),
+          date: seen.date
+        });
+      });
+      built.push(builtMessage);
+    });
+    return built;
+  }
+
+  private static createAttendeesMap = (attendees: User[]): Map<string, User> => {
+    const result = new Map<string, User>();
+    for(let i = 0; i < attendees.length; ++i) {
+      result.set(attendees[i].id, attendees[i]);
+    }
+    return result;
+  }
   
-  private static getList = async (id: string): Promise<List> => {
+  private static getList = async (id: string): Promise<ListDTO> => {
     Logger.debug('GET list request');
     if (!store.state.currentUser.id) {
       Logger.debug('User has no session');
@@ -48,8 +123,7 @@ export default class ListsController {
       return Promise.reject(err)
     })
     Logger.debug('Request succeed');
-    Logger.debug('List loaded', store.state.currentList)
-    store.commit('changeCurrentList', res.data)
+    Logger.debug('List DTO loaded', res.data)
     return res.data
   }
 

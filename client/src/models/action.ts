@@ -1,7 +1,17 @@
 import User from '@/models/user'
-import Seen from '@/models/seen'
+import Seen, { SeenDTO } from '@/models/seen'
 
-export default class Item {
+export interface ActionDTO {
+  code: string;
+	by: string;
+	date: Date;
+	itemName: string;
+	oldValue: string;
+	newValue: string;
+	seen: SeenDTO[];
+}
+
+export default class Action {
 	code: string;
 	by: User;
 	date: Date;

@@ -1,5 +1,10 @@
 import User from '@/models/user'
 
+export interface SeenDTO {
+  by: string;
+  date: Date;
+}
+
 export default class Seen {
 	by: User;
 	date: Date;

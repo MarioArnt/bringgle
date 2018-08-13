@@ -283,17 +283,17 @@ export default class ListsController {
 					.populate({
 						path: 'items',
 						model: ListItem,
-						populate: {path: 'responsible', model: User}
 					})
 					.populate({
 						path: 'history',
 						model: Action,
-						populate: [
-							{path: 'by', model: User},
-							{path: 'seen', model: Seen}
-						]
+						populate: {path: 'seen', model: Seen}
 					})
-					.populate({path: 'messages', model: Message})
+					.populate({
+						path: 'messages',
+						model: Message,
+						populate: {path: 'seen', model: Seen}
+					})
 					.exec(callback);
 			}
 			return List.findById(id, callback);

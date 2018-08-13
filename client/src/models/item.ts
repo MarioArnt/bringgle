@@ -1,5 +1,13 @@
 import User from '@/models/user'
 
+export interface ItemDTO {
+  id: string;
+  quantity: number;
+  name: string;
+  responsible: {key: string};
+  created: Date;
+}
+
 export default class Item {
   id: string;
   quantity: number;

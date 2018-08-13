@@ -1,5 +1,5 @@
 import Mongoose from 'mongoose';
-import {UserModel, UserDTO} from './user';
+import {UserModel} from './user';
 import {SeenModel, SeenDTO} from './seen';
 
 export type ActionModel = Mongoose.Document & {
@@ -15,7 +15,7 @@ export type ActionModel = Mongoose.Document & {
 export interface ActionDTO {
 	id: string;
 	code: string;
-	by: UserDTO;
+	by: string;
 	date: Date;
 	itemName: string;
 	oldValue: string;

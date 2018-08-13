@@ -1,5 +1,13 @@
 import User from '@/models/user'
-import Seen from '@/models/seen'
+import Seen, { SeenDTO } from '@/models/seen'
+
+export interface MessageDTO {
+  from: string;
+  to: string;
+  msg: string;
+  sent: Date;
+  seen: SeenDTO[];
+}
 
 export default class Message {
   from: User;
