@@ -647,6 +647,10 @@ export default class ListsController {
 	private inviteUser = async (listId: string, userId: string, email: string): Promise<ActionDTO> => {
 		const list = await ListsController.findById(listId).catch(err => Promise.reject(err)) as ListModelLazy;
 		const user = await UsersController.findById(userId).catch(err => Promise.reject(err)) as UserModel;
+		const unathorized = ListsController.checkAuthorized(list, user._id, 'invite attendee');
+		if (unathorized) {
+			return Promise.reject(unathorized);
+		}
 		await MailsController.invite(list._id, list.title, email, user.name).catch(err => Promise.reject(err));
 		const action = await this.createUserInvitedAction(list, user, email).catch(err => Promise.reject(err));
 		return ActionsController.actionBuilder(action);
