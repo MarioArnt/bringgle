@@ -1,7 +1,8 @@
 import logger from '../logger';
 import {UserDTO} from '../models/user';
 import {ItemDTO} from '../models/item';
-import {ActionDTO} from '../models/action';
+import {ActionEagerDTO} from '../models/action';
+import {MessageEagerDTO} from '../models/message';
 
 export default class SocketsUtils {
 	io: SocketIO.Server;
@@ -85,8 +86,13 @@ export default class SocketsUtils {
 		this.io.sockets.to(listId).emit('item removed', itemId);
 	};
 
-	public emitAction = (listId: string, action: ActionDTO) => {
+	public emitAction = (listId: string, action: ActionEagerDTO) => {
 		logger.debug(`Socket event ${listId}: New history entry`);
 		this.io.sockets.to(listId).emit('action happened', action);
+	};
+
+	public messageSent = (listId: string, message: MessageEagerDTO) => {
+		logger.debug(`Socket event ${listId}: New message`);
+		this.io.sockets.to(listId).emit('new message', message);
 	};
 }

@@ -3,7 +3,7 @@
     #qty
       md-field(:class="{'md-invalid': errors.has('quantity')}")
         label Quantity
-        md-input(v-validate="'required|numeric|between:1,99'" name="quantity" v-model="quantity" type="number")
+        md-input(v-validate="'required|numeric|between:1,99'" name="quantity" v-model="quantity" type="number" v-on:keyup.enter="submitItem()")
         span.md-error {{ errors.first('quantity') }}
     #new-item
       md-field(:class="{'md-invalid': errors.has('item name')}")

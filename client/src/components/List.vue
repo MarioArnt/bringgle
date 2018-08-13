@@ -18,11 +18,15 @@
       #list-content.md-layout-item.md-xsmall-size-100.md-small-size-66.md-medium-size-66.md-large-size-75.md-xlarge-size-80
         h1#list-title.ellipsis {{  $store.state.currentList.title }}
         md-tabs
+          template(slot="md-tab" slot-scope="{ tab }")
+            | {{ tab.label }} 
+            i.badge(v-if="tab.data.badge") {{ tab.data.badge }}
           md-tab(id="tab-items" md-label="Items")
             items-list
           md-tab(v-if="xsmall" id="tab-attendees" md-label="Attendees")
           md-tab(id="tab-messages" md-label="Messages")
-          md-tab(id="tab-history" md-label="History")
+            messenger
+          md-tab(id="tab-history" md-label="History" :md-template-data="{ badge: newAction }")
             history
 
 
@@ -33,17 +37,19 @@ import AddAttendee from '@/components/AddAttendee'
 import ListsController from '@/controllers/lists'
 import ErrorPage from '@/components/ErrorPage'
 import History from '@/components/History'
+import Messenger from '@/components/Messenger'
 import SocketsUtils from '../sockets';
 import Vue from 'vue';
 
 export default Vue.extend({
   data: function () {
     return {
-      xsmall: false
+      xsmall: false,
+      newAction: 42
      }
   },
   name: 'List',
-  components: { ItemsList, AddAttendee, ErrorPage, History },
+  components: { ItemsList, AddAttendee, ErrorPage, History, Messenger },
   beforeCreate: function () {
     this.$store.commit('clearListStatus')
   },

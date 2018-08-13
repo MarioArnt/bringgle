@@ -4,6 +4,7 @@ import User from '@/models/user'
 import List from '@/models/list'
 import Item from '@/models/item'
 import Action from '@/models/action'
+import Message from '@/models/message'
 import Vue from 'vue'
 import Logger from 'js-logger'
 
@@ -108,6 +109,9 @@ const mutations: MutationTree<RootState> = {
   },
   addAction (state: RootState, action: Action) {
     state.currentList.history.push(action);
+  },
+  addMessage (state: RootState, message: Message) {
+    state.currentList.messages.push(message);
   }
 };
 

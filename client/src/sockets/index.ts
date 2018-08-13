@@ -5,6 +5,7 @@ import store from '@/store'
 import User from '@/models/user'
 import Item from '@/models/item'
 import Action from '@/models/action'
+import Message from '@/models/message'
 
 export default class SocketsUtils {
   private static socket: io.Socket;
@@ -22,6 +23,7 @@ export default class SocketsUtils {
     SocketsUtils.socket.on('item updated', item => SocketsUtils.itemUpdated(item))
     SocketsUtils.socket.on('item removed', item => SocketsUtils.itemRemoved( item))
     SocketsUtils.socket.on('action happened', action => SocketsUtils.actionHappened(action))
+    SocketsUtils.socket.on('new message', message => SocketsUtils.newMessage(message))
     Logger.info('Socket created', SocketsUtils.socket)
   }
 
@@ -58,4 +60,10 @@ export default class SocketsUtils {
     Logger.info('New history entry', action)
     store.commit('addAction', action)
   }
+
+  private static newMessage = (message: Message): void => {
+    Logger.info('New history entry', message)
+    store.commit('addMessage', message)
+  }
+
 }

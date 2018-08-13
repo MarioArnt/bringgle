@@ -1,19 +1,27 @@
-import {ActionModel, ActionDTO} from '../models/action';
+import {ActionModel, ActionLazyDTO, ActionEagerDTO} from '../models/action';
 import SeensController from './seens';
 import Errors from '../constants/errors';
 import {Document} from 'mongoose';
+import UsersController from './users';
+import {SeenEagerDTO, SeenLazyDTO} from '../models/seen';
 
 export default class ActionsController {
-	public static actionBuilder = (action: ActionModel): ActionDTO => {
+	public static actionBuilder = (action: ActionModel, eager = false): ActionLazyDTO | ActionEagerDTO => {
+		let seen: any;
+		if (eager) {
+			seen = action.seen.map(see => SeensController.seenBuilder(see, true) as SeenEagerDTO);
+		} else {
+			seen = action.seen.map(see => SeensController.seenBuilder(see, false) as SeenLazyDTO);
+		}
 		return {
 			id: action.id,
 			code: action.code,
-			by: action.by._id,
+			by: eager ? UsersController.userBuilder(action.by) : action.by._id,
 			date: action.date,
 			itemName: action.itemName,
 			oldValue: action.oldValue,
 			newValue: action.newValue,
-			seen: action.seen.map(see => SeensController.seenBuilder(see))
+			seen
 		};
 	};
 

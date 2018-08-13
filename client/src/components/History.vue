@@ -1,6 +1,6 @@
 <template lang="pug">
   md-list
-    md-list-item(v-for="action in orderedHistory" :key="action.id")
+    md-list-item(v-for="action in $store.getters.orderedHistory" :key="action.id")
       p.md-list-item-text 
         span {{humanReadable(action)}} 
         span.date {{formatTime(action.date)}}
@@ -11,13 +11,9 @@ import Vue from 'vue';
 import Actions from '../../../server/src/constants/actions';
 import moment from 'moment'
 import store from '@/store'
+import DateHelpers from '@/helpers/date'
 
 export default Vue.extend({
-  computed: {
-    orderedHistory: function () {
-      return store.state.currentList.history.sort((a, b) => moment(b.date).valueOf() - moment(a.date).valueOf());
-    }
-  },
   name: 'History',
   methods: {
     humanReadable(action) {
@@ -39,11 +35,7 @@ export default Vue.extend({
       }
     },
     formatTime(date): string {
-      const actionDate = moment(date);
-      const now = moment();
-      if (!actionDate.isBefore(now.subtract(1, 'd'))) return actionDate.fromNow();
-      if( actionDate.year()!== now.year()) return actionDate.format('MMMM Do YYYY - HH:mm');
-      return actionDate.format('MMMM Do - HH:mm');
+      return DateHelpers.format(date);
     }
   }
 });

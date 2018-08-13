@@ -1,13 +1,18 @@
 import Mongoose from 'mongoose';
-import {UserModel} from './user';
+import {UserModel, UserDTO} from './user';
 
 export type SeenModel = Mongoose.Document & {
 	by: UserModel;
 	date: Date;
 };
 
-export interface SeenDTO {
+export interface SeenLazyDTO {
 	by: string;
+	date: Date;
+}
+
+export interface SeenEagerDTO {
+	by: UserDTO;
 	date: Date;
 }
 

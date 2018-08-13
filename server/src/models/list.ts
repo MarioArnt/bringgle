@@ -1,8 +1,8 @@
 import Mongoose from 'mongoose';
 import {UserModel, UserDTO} from './user';
 import {ItemModel, ItemDTO} from './item';
-import {MessageModel, MessageDTO} from './message';
-import {ActionModel, ActionDTO} from './action';
+import {MessageModel, MessageLazyDTO} from './message';
+import {ActionModel, ActionLazyDTO} from './action';
 
 export type ListModelEager = Mongoose.Document & {
 	title: string;
@@ -22,8 +22,8 @@ export interface ListDTO {
 	owner: UserDTO;
 	attendees: UserDTO[];
 	items: ItemDTO[];
-	messages: MessageDTO[];
-	history: ActionDTO[];
+	messages: MessageLazyDTO[];
+	history: ActionLazyDTO[];
 	created: Date;
 }
 

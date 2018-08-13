@@ -2,7 +2,7 @@ import logger from '../logger';
 import {Request, Response} from 'express';
 import SocketsUtils from '../sockets';
 import Errors, {ErrorModel} from '../constants/errors';
-import Action, {ActionModel, ActionDTO} from '../models/action';
+import Action, {ActionModel, ActionLazyDTO, ActionEagerDTO} from '../models/action';
 import User, {UserModel, UserDTO} from '../models/user';
 import List, {ListModelLazy, ListModelEager, ListDTO} from '../models/list';
 import ListItem, {ItemModel, ItemDTO} from '../models/item';
@@ -13,8 +13,9 @@ import {Document} from 'mongoose';
 import MailsController from '../mails';
 import MessagesController from './messages';
 import ActionsController from './actions';
-import Message from '../models/message';
+import Message, {MessageLazyDTO, MessageEagerDTO} from '../models/message';
 import Seen from '../models/seen';
+import SeensController from './seens';
 
 export interface CreateJoinResponse {
 	listId: string;
@@ -257,7 +258,7 @@ export default class ListsController {
 			logger.error(err);
 			return Promise.reject(err);
 		});
-		this.socketsUtils.emitAction(list._id, ActionsController.actionBuilder(joinAction));
+		this.socketsUtils.emitAction(list._id, ActionsController.actionBuilder(joinAction, true) as ActionEagerDTO);
 		return {
 			listId: savedList._id,
 			listName: savedList.title,
@@ -343,8 +344,8 @@ export default class ListsController {
 			owner: UsersController.userBuilder(list.owner),
 			attendees: list.attendees.map(att => UsersController.userBuilder(att)),
 			items: list.items.map(it => ItemsController.itemBuilder(it)),
-			messages: list.messages.map(msg => MessagesController.messageBuilder(msg)),
-			history: list.history.map(action => ActionsController.actionBuilder(action)),
+			messages: list.messages.map(msg => MessagesController.messageBuilder(msg) as MessageLazyDTO),
+			history: list.history.map(action => ActionsController.actionBuilder(action) as ActionLazyDTO),
 			created: list.created
 		};
 	};
@@ -397,7 +398,7 @@ export default class ListsController {
 		});
 		const savedAction = await ActionsController.save(itemAdded).catch(errItem => Promise.reject(errItem));
 		const savedItem = await ItemsController.save(item).catch(errItem => Promise.reject(errItem)) as ItemModel;
-		this.socketsUtils.emitAction(list._id, ActionsController.actionBuilder(savedAction));
+		this.socketsUtils.emitAction(list._id, ActionsController.actionBuilder(savedAction, true) as ActionEagerDTO);
 		return this.addItemToList(list, savedItem, savedAction).catch(errSave => Promise.reject(errSave));
 	};
 
@@ -509,7 +510,7 @@ export default class ListsController {
 		});
 		const savedAction = await ActionsController.save(changeName).catch(errItem => Promise.reject(errItem));
 		list.history.push(savedAction._id);
-		this.socketsUtils.emitAction(list._id, ActionsController.actionBuilder(savedAction));
+		this.socketsUtils.emitAction(list._id, ActionsController.actionBuilder(savedAction, true) as ActionEagerDTO);
 		return Promise.resolve();
 	};
 
@@ -524,7 +525,7 @@ export default class ListsController {
 		});
 		const savedAction = await ActionsController.save(changeName).catch(errItem => Promise.reject(errItem));
 		list.history.push(savedAction._id);
-		this.socketsUtils.emitAction(list._id, ActionsController.actionBuilder(savedAction));
+		this.socketsUtils.emitAction(list._id, ActionsController.actionBuilder(savedAction, true) as ActionEagerDTO);
 		return Promise.resolve();
 	};
 
@@ -596,7 +597,7 @@ export default class ListsController {
 		const savedAction = await ActionsController.save(removeItem).catch(errItem => Promise.reject(errItem));
 		list.history.push(savedAction._id);
 		await ListsController.save(list).catch(errUpdate => Promise.reject(errUpdate));
-		this.socketsUtils.emitAction(listId, ActionsController.actionBuilder(savedAction));
+		this.socketsUtils.emitAction(listId, ActionsController.actionBuilder(savedAction, true) as ActionEagerDTO);
 		return deletedItem;
 	};
 
@@ -636,7 +637,7 @@ export default class ListsController {
 		if (err) {
 			return res.status(err.status).send(err);
 		}
-		this.inviteUser(req.params.id, req.body.userId, req.body.email).then((action: ActionDTO) => {
+		this.inviteUser(req.params.id, req.body.userId, req.body.email).then((action: ActionEagerDTO) => {
 			this.socketsUtils.emitAction(req.params.id, action);
 			return res.status(200).send(req.body.email);
 		}, errInvite => {
@@ -644,7 +645,7 @@ export default class ListsController {
 		});
 	};
 
-	private inviteUser = async (listId: string, userId: string, email: string): Promise<ActionDTO> => {
+	private inviteUser = async (listId: string, userId: string, email: string): Promise<ActionEagerDTO> => {
 		const list = await ListsController.findById(listId).catch(err => Promise.reject(err)) as ListModelLazy;
 		const user = await UsersController.findById(userId).catch(err => Promise.reject(err)) as UserModel;
 		const unathorized = ListsController.checkAuthorized(list, user._id, 'invite attendee');
@@ -653,7 +654,7 @@ export default class ListsController {
 		}
 		await MailsController.invite(list._id, list.title, email, user.name).catch(err => Promise.reject(err));
 		const action = await this.createUserInvitedAction(list, user, email).catch(err => Promise.reject(err));
-		return ActionsController.actionBuilder(action);
+		return ActionsController.actionBuilder(action, true) as ActionEagerDTO;
 	};
 
 	private createUserInvitedAction = async (list: ListModelLazy, user: UserModel, email: string): Promise<ActionModel> => {
@@ -668,5 +669,48 @@ export default class ListsController {
 		list.history.push(savedAction._id);
 		await ListsController.save(list).catch(errUpdate => Promise.reject(errUpdate));
 		return savedAction;
+	};
+
+	public sendMessage = (req: Request, res: Response): Response => {
+		const listId = req.params.id;
+		const userId = req.body.userId;
+		let err = ListsController.checkId(ListsController.uncastFalsyRequestParamter(listId), 'list');
+		if (!err) {
+			err = ListsController.checkId(userId, 'user');
+		}
+		if (err) {
+			return res.status(err.status).send(err);
+		}
+		this.saveMessage(listId, userId, req.body.content).then(savedMessage => {
+			this.socketsUtils.messageSent(listId, MessagesController.messageBuilder(savedMessage, true) as MessageEagerDTO);
+			return res.status(200).send(savedMessage);
+		}, errSavingMessage => {
+			return res.status(errSavingMessage.status).send(errSavingMessage);
+		});
+
+	};
+	private saveMessage = async (listId: string, from: string, content: string) => {
+		const list: ListModelLazy = await ListsController.findById(listId).catch(err => Promise.reject(err)) as ListModelLazy;
+		const user: UserModel = await UsersController.findById(from).catch(err => Promise.reject(err)) as UserModel;
+		const unathorized = ListsController.checkAuthorized(list, from, 'send message');
+		if (unathorized) {
+			return Promise.reject(unathorized);
+		}
+		const created = Date.now();
+		const seenByPoster = new Seen({
+			by: from,
+			date: created,
+		});
+		const savedSeen = await SeensController.save(seenByPoster).catch(err => Promise.reject(err));
+		const message = new Message({
+			from: user,
+			msg: content,
+			sent: created,
+			seen: [savedSeen]
+		});
+		const savedMessage = await MessagesController.save(message).catch(err => Promise.reject(err));
+		list.messages.push(savedMessage._id);
+		await ListsController.save(list).catch(err => Promise.reject(err));
+		return savedMessage;
 	};
 }

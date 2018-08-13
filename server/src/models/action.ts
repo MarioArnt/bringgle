@@ -1,6 +1,6 @@
 import Mongoose from 'mongoose';
-import {UserModel} from './user';
-import {SeenModel, SeenDTO} from './seen';
+import {UserModel, UserDTO} from './user';
+import {SeenModel, SeenLazyDTO, SeenEagerDTO} from './seen';
 
 export type ActionModel = Mongoose.Document & {
 	code: string;
@@ -12,7 +12,7 @@ export type ActionModel = Mongoose.Document & {
 	seen: SeenModel[];
 };
 
-export interface ActionDTO {
+export interface ActionLazyDTO {
 	id: string;
 	code: string;
 	by: string;
@@ -20,7 +20,18 @@ export interface ActionDTO {
 	itemName: string;
 	oldValue: string;
 	newValue: string;
-	seen: SeenDTO[];
+	seen: SeenLazyDTO[];
+}
+
+export interface ActionEagerDTO {
+	id: string;
+	code: string;
+	by: UserDTO;
+	date: Date;
+	itemName: string;
+	oldValue: string;
+	newValue: string;
+	seen: SeenEagerDTO[];
 }
 
 const Schema = Mongoose.Schema;

@@ -52,6 +52,12 @@ body {
 .white {
   color: white;
 }
+.primary {
+  color: #7e57c2;
+}
+.primary-lighter {
+  color: #B39DDB;
+}
 .md-xsmall-show {
   display: none;
 }
