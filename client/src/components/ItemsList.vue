@@ -1,5 +1,5 @@
 <template lang="pug">
-  .items-container
+  #items
     md-dialog(:md-active.sync="showDialog")
       md-dialog-title Preferences
       md-dialog-content
@@ -7,36 +7,38 @@
           md-checkbox(v-model="selectedItem.responsible[i] !== undefined" v-on:change="bringItem(selectedItem, i)")
             span.item-name {{ selectedItem.name }} {{`#${i}`}}
             span.brought-by(v-if="selectedItem.responsible[i]")  | {{ selectedItem.responsible[i].name }}
-    div.item(v-for="item in $store.state.currentList.items")
-      .md-layout.md-alignment-center-space-between(v-if="!item.edit")
-        #item-checkbox
-          md-checkbox(v-if="item.quantity === 1" v-model="Object.keys(item.responsible).length === 1" v-on:change="bringItem(item, 0)")
-            span.item-name {{ item.name }}
-            span.brought-by(v-if="item.responsible[0]")  | {{ item.responsible[0].name }}
-          md-checkbox(v-if="item.quantity > 1 && Object.keys(item.responsible).length === 0" v-model="item.quantity < 0" v-on:change="openItemDetails(item)")
-            span.item-name {{ item.name }}
-            span.brought-by  ({{ Object.keys(item.responsible).length }}/{{ item.quantity}})
-          md-checkbox(v-if="item.quantity > 1 && Object.keys(item.responsible).length > 0 && Object.keys(item.responsible).length < item.quantity" v-model="item.quantity > 1" v-on:change="openItemDetails(item)" indeterminate)
-            span.item-name {{ item.name }}
-            span.brought-by  ({{ Object.keys(item.responsible).length }}/{{ item.quantity}})
-          md-checkbox(v-if="item.quantity > 1 && Object.keys(item.responsible).length === item.quantity" v-model="item.quantity > 1" v-on:change="openItemDetails(item)")
-            span.item-name {{ item.name }}
-            span.brought-by  ({{ Object.keys(item.responsible).length }}/{{ item.quantity}})
-        #item-menu
-          md-menu(md-direction="bottom-end")
-            md-button.md-icon-button(md-menu-trigger)
-              i.fa.fa-ellipsis-v
-            md-menu-content
-              md-menu-item(v-on:click="editItem(item)")
-                span
-                  i.fa.fa-edit
-                  | Edit
-              md-menu-item(v-on:click="removeItem(item)")
-                span
-                  i.fa.fa-trash
-                  | Remove
-      add-item(v-if="item.edit" :item-id='item.id' :item-name="item.name" :item-quantity="item.quantity")
-    add-item
+    #items-container
+      div.item(v-for="item in $store.state.currentList.items")
+        .md-layout.md-alignment-center-space-between(v-if="!item.edit")
+          #item-checkbox
+            md-checkbox(v-if="item.quantity === 1" v-model="Object.keys(item.responsible).length === 1" v-on:change="bringItem(item, 0)")
+              span.item-name {{ item.name }}
+              span.brought-by(v-if="item.responsible[0]")  | {{ item.responsible[0].name }}
+            md-checkbox(v-if="item.quantity > 1 && Object.keys(item.responsible).length === 0" v-model="item.quantity < 0" v-on:change="openItemDetails(item)")
+              span.item-name {{ item.name }}
+              span.brought-by  ({{ Object.keys(item.responsible).length }}/{{ item.quantity}})
+            md-checkbox(v-if="item.quantity > 1 && Object.keys(item.responsible).length > 0 && Object.keys(item.responsible).length < item.quantity" v-model="item.quantity > 1" v-on:change="openItemDetails(item)" indeterminate)
+              span.item-name {{ item.name }}
+              span.brought-by  ({{ Object.keys(item.responsible).length }}/{{ item.quantity}})
+            md-checkbox(v-if="item.quantity > 1 && Object.keys(item.responsible).length === item.quantity" v-model="item.quantity > 1" v-on:change="openItemDetails(item)")
+              span.item-name {{ item.name }}
+              span.brought-by  ({{ Object.keys(item.responsible).length }}/{{ item.quantity}})
+          #item-menu
+            md-menu(md-direction="bottom-end")
+              md-button.md-icon-button(md-menu-trigger)
+                i.fa.fa-ellipsis-v
+              md-menu-content
+                md-menu-item(v-on:click="editItem(item)")
+                  span
+                    i.fa.fa-edit
+                    | Edit
+                md-menu-item(v-on:click="removeItem(item)")
+                  span
+                    i.fa.fa-trash
+                    | Remove
+        add-item(v-if="item.edit" :item-id='item.id' :item-name="item.name" :item-quantity="item.quantity")
+    #new-item
+      add-item
 </template>
 
 <script lang="ts">
@@ -44,6 +46,7 @@ import Logger from 'js-logger'
 import ItemsController from '../controllers/items'
 import AddItem from '../components/AddItem.vue'
 import Vue from 'vue'
+import PerfectScrollbar from 'perfect-scrollbar';
 
 export default {
   name: 'ItemsList',
@@ -53,6 +56,9 @@ export default {
       showDialog: false,
       selectedItem: {}
     }
+  },
+  mounted() {
+    const ps = new PerfectScrollbar('#items-container');
   },
   methods: {
     bringItem (item, sub) {
@@ -90,5 +96,11 @@ export default {
   #item-menu {
     width: $menu-size;
   }
-
+  #items-container {
+    height: calc(100vh - 292px);
+    overflow: hidden;
+  }
+  #new-item {
+    height: 80px;
+  }
 </style>

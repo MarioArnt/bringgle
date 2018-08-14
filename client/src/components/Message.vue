@@ -16,7 +16,7 @@ export default Vue.extend({
   data: function () {
     return {
       now: Date.now(),
-      formattedDate: '',
+      formattedDate: DateHelpers.format(this.date),
      }
   },
   props: ['from', 'content', 'date', 'previous'],

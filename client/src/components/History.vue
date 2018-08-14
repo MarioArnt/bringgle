@@ -1,9 +1,10 @@
 <template lang="pug">
-  md-list
-    md-list-item(v-for="action in $store.getters.orderedHistory" :key="action.id")
-      p.md-list-item-text 
-        span {{humanReadable(action)}} 
-        span.date {{formatTime(action.date)}}
+  #history
+    md-list
+      md-list-item(v-for="action in $store.getters.orderedHistory" :key="action.id")
+        p.md-list-item-text 
+          span {{humanReadable(action)}} 
+          span.date {{formatTime(action.date)}}
 </template>
 
 <script lang="ts">
@@ -12,9 +13,13 @@ import Actions from '../../../server/src/constants/actions';
 import moment from 'moment'
 import store from '@/store'
 import DateHelpers from '@/helpers/date'
+import PerfectScrollbar from 'perfect-scrollbar';
 
 export default Vue.extend({
   name: 'History',
+  mounted() {
+    const ps = new PerfectScrollbar('#history');
+  },
   methods: {
     humanReadable(action) {
       switch(action.code) {
@@ -42,6 +47,10 @@ export default Vue.extend({
 </script>
 
 <style lang="scss" scoped>
+  #history {
+    height: calc(100vh - 212px);
+    overflow: hidden;
+  }
   span.date {
     color: lightslategrey;
   }

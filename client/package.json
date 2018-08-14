@@ -19,11 +19,13 @@
     "js-cookie": "^2.2.0",
     "js-logger": "^1.4.1",
     "moment": "^2.22.2",
+    "perfect-scrollbar": "^1.4.0",
     "socket.io-client": "^2.1.1",
     "vee-validate": "2.0.9",
     "vue": "^2.5.2",
     "vue-material": "^1.0.0-beta-10.2",
     "vue-router": "^3.0.1",
+    "vue-scrollto": "^2.11.0",
     "vue-toastr": "^2.0.14",
     "vuex": "^3.0.1"
   },
