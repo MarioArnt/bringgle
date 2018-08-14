@@ -1,7 +1,6 @@
 <template lang="pug">
     #messenger
       #messages(ref="messages")
-        .messages-wrapper
           h1.no-message.primary-lighter(v-if="$store.state.currentList.messages.length === 0") No messages yet...
           message(v-for="(message, index) in orderedMessages" :from="message.from" :date="message.sent" :content="message.msg" :key="message.id" :previous="index !== 0 ? orderedMessages[index - 1] : null")
       #new-message
@@ -86,6 +85,7 @@ export default Vue.extend({
   $offset: $header-size + $main-content-padding + $tab-height + $title-height + $send-msg-height;
   #messages {
     height: calc(100vh - 292px);
+    position: relative;
     padding-bottom: 10px;
   }
   #new-message {

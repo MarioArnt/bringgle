@@ -52,7 +52,7 @@ export default Vue.extend({
       border-radius: 5px;
       padding: 5px 10px;
       max-width: 60%;
-      margin-right: 0;
+      margin-right: 10px;
       margin-top: 10px;
       margin-left: auto;
     }

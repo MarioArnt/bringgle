@@ -49,7 +49,7 @@ export default Vue.extend({
 <style lang="scss" scoped>
   #history {
     height: calc(100vh - 212px);
-    overflow: hidden;
+    position: relative;
   }
   span.date {
     color: lightslategrey;

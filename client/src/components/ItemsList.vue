@@ -97,8 +97,8 @@ export default {
     width: $menu-size;
   }
   #items-container {
+    position: relative;
     height: calc(100vh - 292px);
-    overflow: hidden;
   }
   #new-item {
     height: 80px;

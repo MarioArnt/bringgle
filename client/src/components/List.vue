@@ -22,14 +22,12 @@
           md-tabs(@md-changed="tabChanged")
             template(slot="md-tab" slot-scope="{ tab }")
               | {{ tab.label }} 
-              i.badge(v-if="tab.data.badge") {{ tab.data.badge }}
+              i.tab-badge.md-badge.md-theme-default.md-dense(v-if="tab.data.badge") {{ tab.data.badge }}
             md-tab(id="tab-items" md-label="Items")
-              items-list(v-if="currentTab==='tab-items'")
             md-tab(v-if="xsmall" id="tab-attendees" md-label="Attendees")
-            md-tab(id="tab-messages" md-label="Messages")
-              messenger(v-if="currentTab==='tab-messages'")
-            md-tab(id="tab-history" md-label="History" :md-template-data="{ badge: newAction }")
-              history(v-if="currentTab==='tab-history'")
+            md-tab(id="tab-messages" md-label="Messages" :md-template-data="{ badge: $store.getters.unreadMessages.length }")
+            md-tab(id="tab-history" md-label="History" :md-template-data="{ badge: $store.getters.unreadHistory.length }")
+          router-view
 </template>
 <script lang="ts">
 import ItemsList from '@/components/ItemsList'
@@ -41,13 +39,13 @@ import Messenger from '@/components/Messenger'
 import SocketsUtils from '../sockets';
 import Vue from 'vue';
 import PerfectScrollbar from 'perfect-scrollbar'
+import router from '@/router'
 
 export default Vue.extend({
   data: function () {
     return {
       currentTab: 'tab-items',
       xsmall: false,
-      newAction: 42
      }
   },
   name: 'List',
@@ -61,6 +59,7 @@ export default Vue.extend({
     });
   },
   mounted() {
+    router.push(`/list/${this.$route.params.id}/items`);
     const ps = new PerfectScrollbar('#list-attendees');
   },
   beforeDestroy: function () {
@@ -69,6 +68,17 @@ export default Vue.extend({
   methods: {
     tabChanged(newTab) {
       this.currentTab = newTab;
+      switch (newTab) {
+        case 'tab-items':
+        router.push(`/list/${this.$route.params.id}/items`);
+        break;
+      case 'tab-messages':
+        router.push(`/list/${this.$route.params.id}/messages`);
+        break;
+      case 'tab-history':
+        router.push(`/list/${this.$route.params.id}/history`);
+        break;
+      }
     }
   }
 })
@@ -107,5 +117,9 @@ export default Vue.extend({
 #list-title {
   margin: 10px 0;
   height: 28px;
+}
+.tab-badge {
+  top: 5px;
+  right: 0;
 }
 </style>
