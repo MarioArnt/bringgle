@@ -87,6 +87,7 @@ export default Vue.extend({
     height: calc(100vh - 292px);
     position: relative;
     padding-bottom: 10px;
+    overflow: hidden;
   }
   #new-message {
     height: 80px;

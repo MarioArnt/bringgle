@@ -99,6 +99,7 @@ export default {
   #items-container {
     position: relative;
     height: calc(100vh - 292px);
+    overflow: hidden;
   }
   #new-item {
     height: 80px;

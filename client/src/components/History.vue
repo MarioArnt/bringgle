@@ -28,7 +28,7 @@ export default Vue.extend({
         case Actions.JOINED_LIST.code:
           return `${action.by.name} joined list ${this.$store.state.currentList.title}`;
         case Actions.INVITED_USER.code:
-          return `${action.by.name} invite user ${action.newValue}`;
+          return `${action.by.name} invited user ${action.newValue}`;
         case Actions.ADDED_ITEM.code:
           return `${action.by.name} added item ${action.itemName}`;
         case Actions.UPDATED_ITEM_NAME.code:
@@ -50,6 +50,7 @@ export default Vue.extend({
   #history {
     height: calc(100vh - 212px);
     position: relative;
+    overflow: hidden;
   }
   span.date {
     color: lightslategrey;

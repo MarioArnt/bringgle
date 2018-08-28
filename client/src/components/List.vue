@@ -60,7 +60,9 @@ export default Vue.extend({
   },
   mounted() {
     router.push(`/list/${this.$route.params.id}/items`);
-    const ps = new PerfectScrollbar('#list-attendees');
+    setTimeout(() => {
+      const ps = new PerfectScrollbar('#list-attendees');
+    }, 100);
   },
   beforeDestroy: function () {
     SocketsUtils.destroySocket();
@@ -106,9 +108,16 @@ export default Vue.extend({
 .online {
   margin-left: 20px;
 }
+@media screen and (max-width: 960px) {
+  #list-attendees {
+    height: calc(100vh - 48px) !important;
+  }
+}
 #list-attendees,
 #list-content {
   height: calc(100vh - 64px);
+  position: relative;
+  overflow: hidden;
 }
 #list-content {
   padding: 20px;

@@ -45,6 +45,7 @@ export default Vue.extend({
 <style lang="scss" scoped>
   .message-wrapper {
       text-align: right;
+      word-wrap: break-word;
     .date-sent {
       color: lightslategrey;
     }
