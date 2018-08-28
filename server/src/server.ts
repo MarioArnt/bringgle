@@ -11,7 +11,7 @@ import Config, {DatabaseConfig} from '../config';
 import logger from './logger';
 
 export class BringgleServer {
-	public static readonly PORT: number = 8081;
+	private port: number;
 	private app: express.Application;
 	private server: Server;
 	private io: SocketIO.Server;
@@ -20,6 +20,7 @@ export class BringgleServer {
 	private router: Router;
 	constructor() {
 		this.env = process.env.NODE_ENV || 'development';
+		this.port = Config.port[this.env];
 		logger.info(`Starting app in ${this.env} mode`);
 		this.createApp();
 		this.createServer();
@@ -90,8 +91,8 @@ export class BringgleServer {
 	}
 
 	private listen(): void {
-		this.server.listen(process.env.PORT || 8081);
-		logger.info('Magic happens on port 8081');
+		this.server.listen(process.env.PORT || this.port);
+		logger.info('Magic happens on port ' + (process.env.PORT || this.port));
 	}
 
 	public getApp(): express.Application {
