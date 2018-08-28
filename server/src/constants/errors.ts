@@ -1,3 +1,5 @@
+import {ItemDTO} from '../models/item';
+
 export class ErrorModel {
 	code: string;
 	status: number;
@@ -116,21 +118,21 @@ export default class Errors {
 		};
 	};
 
-	public static itemAlreadyBrought = (itemId: string): ErrorModel => {
+	public static itemAlreadyBrought = (item: ItemDTO): ErrorModel => {
 		return {
 			code: Errors.code.ITEM_ALREADY_BROUGHT,
 			status: 400,
 			msg: 'Item Already Brought',
-			details: itemId
+			details: item
 		};
 	};
 
-	public static itemAlreadyCleared = (itemId: string): ErrorModel => {
+	public static itemAlreadyCleared = (item: ItemDTO): ErrorModel => {
 		return {
 			code: Errors.code.ITEM_ALREADY_CLEARED,
 			status: 400,
 			msg: 'Item Already Cleared',
-			details: itemId
+			details: item
 		};
 	};
 

@@ -1,8 +1,10 @@
-import { MutationTree } from 'vuex';
+import {MutationTree} from 'vuex';
 import RootState from '@/store/state'
 import User from '@/models/user'
 import List from '@/models/list'
 import Item from '@/models/item'
+import Action from '@/models/action'
+import Message from '@/models/message'
 import Vue from 'vue'
 import Logger from 'js-logger'
 
@@ -29,6 +31,8 @@ const mutations: MutationTree<RootState> = {
     setProperty(state.currentList, list, 'owner')
     setProperty(state.currentList, list, 'attendees')
     setProperty(state.currentList, list, 'items')
+    setProperty(state.currentList, list, 'history')
+    setProperty(state.currentList, list, 'messages')
   },
   changeConnectedUsers (state: RootState, connected: string[]): void {
     state.currentList.attendees.forEach((att) => Vue.set(att, 'connected', false))
@@ -93,15 +97,21 @@ const mutations: MutationTree<RootState> = {
   },
   listLoaded (state: RootState): void {
     Vue.set(state.listStatus, 'loaded', true)
-    Vue.set(state.listStatus, 'error', false)
+    Vue.set(state.listStatus, 'error', null)
   },
-  errorLoadingList (state: RootState): void {
+  errorLoadingList (state: RootState, status: number): void {
     Vue.set(state.listStatus, 'loaded', false)
-    Vue.set(state.listStatus, 'error', true)
+    Vue.set(state.listStatus, 'error', status)
   },
   clearListStatus (state: RootState): void {
     Vue.set(state.listStatus, 'loaded', false)
-    Vue.set(state.listStatus, 'error', false)
+    Vue.set(state.listStatus, 'error', null)
+  },
+  addAction (state: RootState, action: Action) {
+    state.currentList.history.push(action);
+  },
+  addMessage (state: RootState, message: Message) {
+    state.currentList.messages.push(message);
   }
 };
 

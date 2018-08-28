@@ -12,8 +12,16 @@ export interface UserDTO extends IUser {
 export interface UserModel extends IUser, Mongoose.Document {}
 
 const userSchema = new Mongoose.Schema({
-	name: {type: String, required: true},
-	email: {type: String, required: true}
+	name: {
+		type: String,
+		required: true,
+		maxlength: 25
+	},
+	email: {
+		type: String,
+		required: true,
+		maxlength: 254
+	}
 });
 
 export default Mongoose.model('user', userSchema);

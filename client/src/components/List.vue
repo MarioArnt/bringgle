@@ -1,48 +1,89 @@
 <template lang="pug">
   .list
-    h1(v-if="$store.state.listStatus.error") Error occured
-    .list-content.md-layout(v-if="$store.state.listStatus.loaded")
-      .md-layout-item.md-size-100
-        h1 {{  $store.state.currentList.title }}
-      #items.md-layout-item.md-xsmall-size-100.md-small-size-66
-        h3 Items
-        items-list
-      #attendees.md-layout-item.md-xsmall-size-100.md-small-size-33
-        h3 Attendees
-        div.attendee(v-for="attendee in $store.state.currentList.attendees")
-            md-card(md-with-hover)
-              md-ripple
-                md-card-header
-                  div.md-title {{ attendee.name }}
-                  div.md-subhead
-                    div.circle(:class="attendee.connected ? 'green' : 'red'")
-                    | {{ attendee.connected ? 'Online' : 'Offline' }}
-        add-attendee
+    error-page(v-if="$store.state.listStatus.error" :status="$store.state.listStatus.error" type="List")
+    #list-main.md-layout(v-if="$store.state.listStatus.loaded")
+      #list-attendees.md-xsmall-hide.md-elevation-7.md-layout-item.md-xsmall-size-100.md-small-size-33.md-medium-size-33.md-large-size-25.md-xlarge-size-20
+        .list-attendee-wrapper
+          md-list.md-double-line
+            md-subheader Attendees
+            md-list-item(v-for="attendee in $store.state.currentList.attendees" :key="attendee.id")
+              .md-list-item-text
+                span
+                  .circle(:class="attendee.connected ? 'green' : 'red'")
+                  | {{ attendee.name }}
+                span.online {{ attendee.connected ? 'Online' : 'Offline' }}
+              md-button.md-icon-button.md-list-action
+                i.fa.fa-comments
+            md-divider
+          add-attendee
+      #list-content.md-layout-item.md-xsmall-size-100.md-small-size-66.md-medium-size-66.md-large-size-75.md-xlarge-size-80
+        .list-content-wrapper
+          h1#list-title.ellipsis {{  $store.state.currentList.title }}
+          md-tabs(@md-changed="tabChanged")
+            template(slot="md-tab" slot-scope="{ tab }")
+              | {{ tab.label }} 
+              i.tab-badge.md-badge.md-theme-default.md-dense(v-if="tab.data.badge") {{ tab.data.badge }}
+            md-tab(id="tab-items" md-label="Items")
+            md-tab(v-if="xsmall" id="tab-attendees" md-label="Attendees")
+            md-tab(id="tab-messages" md-label="Messages" :md-template-data="{ badge: $store.getters.unreadMessages.length }")
+            md-tab(id="tab-history" md-label="History" :md-template-data="{ badge: $store.getters.unreadHistory.length }")
+          router-view
 </template>
 <script lang="ts">
-import ItemsList from '@/components/ItemsList.vue'
-import AddAttendee from '@/components/AddAttendee.vue'
+import ItemsList from '@/components/ItemsList'
+import AddAttendee from '@/components/AddAttendee'
 import ListsController from '@/controllers/lists'
+import ErrorPage from '@/components/ErrorPage'
+import History from '@/components/History'
+import Messenger from '@/components/Messenger'
+import SocketsUtils from '../sockets';
+import Vue from 'vue';
+import PerfectScrollbar from 'perfect-scrollbar'
+import router from '@/router'
 
-export default {
+export default Vue.extend({
   data: function () {
     return {
-      listsController: ListsController
+      currentTab: 'tab-items',
+      xsmall: false,
      }
   },
   name: 'List',
-  components: { ItemsList, AddAttendee },
+  components: { ItemsList, AddAttendee, ErrorPage, History, Messenger },
   beforeCreate: function () {
     this.$store.commit('clearListStatus')
   },
   created: function () {
-    this.listsController = new ListsController()
-    this.listsController.fetchList(this.$route.params.id)
+    ListsController.fetchList(this.$route.params.id).catch((err) => {
+      this.$toastr.e(err.msg);
+    });
+  },
+  mounted() {
+    router.push(`/list/${this.$route.params.id}/items`);
+    setTimeout(() => {
+      const ps = new PerfectScrollbar('#list-attendees');
+    }, 100);
   },
   beforeDestroy: function () {
-    // Disconnect socket
+    SocketsUtils.destroySocket();
+  },
+  methods: {
+    tabChanged(newTab) {
+      this.currentTab = newTab;
+      switch (newTab) {
+        case 'tab-items':
+        router.push(`/list/${this.$route.params.id}/items`);
+        break;
+      case 'tab-messages':
+        router.push(`/list/${this.$route.params.id}/messages`);
+        break;
+      case 'tab-history':
+        router.push(`/list/${this.$route.params.id}/history`);
+        break;
+      }
+    }
   }
-}
+})
 </script>
 
 <style lang="scss" scoped>
@@ -51,22 +92,43 @@ export default {
     padding-right: 30px
   }
 }
-#attendees {
-  .attendee {
-    margin: 5px 0;
-    .circle {
-      height: 10px;
-      width: 10px;
-      border-radius: 50%;
-      display: inline-block;
-      margin-right: 5px;
-      &.red {
-        background-color: red;
-      }
-      &.green {
-        background-color: green;
-      }
-    }
+.circle {
+  height: 10px;
+  width: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  margin: 0 5px;
+  &.red {
+    background-color: red;
   }
+  &.green {
+    background-color: green;
+  }
+}
+.online {
+  margin-left: 20px;
+}
+@media screen and (max-width: 960px) {
+  #list-attendees {
+    height: calc(100vh - 48px) !important;
+  }
+}
+#list-attendees,
+#list-content {
+  height: calc(100vh - 64px);
+  position: relative;
+  overflow: hidden;
+}
+#list-content {
+  padding: 20px;
+  padding-bottom: 0;
+}
+#list-title {
+  margin: 10px 0;
+  height: 28px;
+}
+.tab-badge {
+  top: 5px;
+  right: 0;
 }
 </style>

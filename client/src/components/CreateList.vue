@@ -1,10 +1,10 @@
 <template lang='pug'>
-  .create-list
+  .create-list.main-content
     h1 Create new list
     form
       md-field(:class="{'md-invalid': errors.has('list name')}")
         label List Name
-        md-input(v-validate="'required'" v-model="listName" placeholder='Awesome List' id='list-name' name="list name" type='text' class='validate' v-on:keyup.enter="sendData()" required)
+        md-input(v-validate="'required'" v-model="listName" placeholder='Awesome List' id='list-name' name="list name" type='text' class='validate' v-on:keyup.enter="sendData()" required maxlength="25")
         span.md-error {{ errors.first('list name') }}
       md-field(:class="{'md-invalid': errors.has('email')}")
         label Email
@@ -12,7 +12,7 @@
         span.md-error {{ errors.first('email') }}
       md-field(:class="{'md-invalid': errors.has('display name')}")
         label Display Name
-        md-input(v-validate="'required'" v-model="displayName" placeholder='John Doe' id='user-name' name="display name" type='text' class='validate' v-on:keyup.enter="sendData()" required)
+        md-input(v-validate="'required'" v-model="displayName" placeholder='John Doe' id='user-name' name="display name" type='text' class='validate' v-on:keyup.enter="sendData()" required maxlength="25")
         span.md-error {{ errors.first('display name') }}
       md-button.md-raised.md-accent(:disabled="errors.any() || buttonDisabled" v-on:click='sendData()')
         i.fa.fa-plus
@@ -22,8 +22,6 @@
 <script lang="ts">
 import ListsController from '../controllers/lists'
 import Logger from 'js-logger'
-
-const listsController: ListsController = new ListsController();
 
 export default {
   name: 'CreateList',
@@ -48,11 +46,11 @@ export default {
       this.$validator.validate().then((valid) => {
         if (valid) {
           this.buttonDisabled = true
-          listsController.createList(this.listName, this.displayName, this.userEmail).then(() => {
+          ListsController.createList(this.listName, this.displayName, this.userEmail).then(() => {
             this.$toastr.s('List successfully created')
             this.buttonDisabled = false
           }, (err) => {
-            this.$toastr.e('Error happened')
+            this.$toastr.e('Error happened while creating list')
             Logger.error('Error happened while creating list', err)
             this.buttonDisabled = false
           })

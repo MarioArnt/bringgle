@@ -1,5 +1,5 @@
 <template lang="pug">
-  div#home
+  #home.main-content
     h1 Easily create shareable lists of what to bring
     h2 How it works ?
     h3 Create a new list

@@ -1,5 +1,5 @@
 <template lang='pug'>
-  .join-list
+  .join-list.main-content
     h1 Join list
     form
       md-field(:class="{'md-invalid': errors.has('email')}")
@@ -8,7 +8,7 @@
         span.md-error {{ errors.first('email') }}
       md-field(:class="{'md-invalid': errors.has('display name')}")
         label  Display Name
-        md-input(v-validate="'required'" v-model="displayName" placeholder='John Doe' id='user-name' name="display name" type='text' class='validate'  v-on:keyup.enter="sendData()" required)
+        md-input(v-validate="'required'" v-model="displayName" placeholder='John Doe' id='user-name' name="display name" type='text' class='validate'  v-on:keyup.enter="sendData()" required maxlength="25")
         span.md-error {{ errors.first('display name') }}
       md-button.md-raised.md-accent(:disabled="errors.any() || buttonDisabled" v-on:click='sendData()')
         i.fa.fa-plus
@@ -19,8 +19,6 @@
 import ListsController from '../controllers/lists'
 import store from '../store'
 import Logger from 'js-logger'
-
-const listsController: ListsController = new ListsController();
 
 export default {
   name: 'JoinList',
@@ -44,11 +42,11 @@ export default {
       this.$validator.validate().then((valid) => {
         if (valid) {
           this.buttonDisabled = true
-          listsController.joinList(this.$route.params.id, this.displayName, this.userEmail).then(() => {
+          ListsController.joinList(this.$route.params.id, this.displayName, this.userEmail).then(() => {
             this.buttonDisabled = false
             this.$toastr.s('Yay ! You join the list')
           }, (err) => {
-            this.$toastr.e('Error happened')
+            this.$toastr.e(err.msg)
             Logger.error('Error happened while joining list', err)
             this.buttonDisabled = false
           })

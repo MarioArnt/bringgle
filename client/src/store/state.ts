@@ -6,6 +6,6 @@ export default interface RootState {
   currentList: List,
   listStatus: {
     loaded: boolean,
-    error: boolean
+    error: number
   }
 }

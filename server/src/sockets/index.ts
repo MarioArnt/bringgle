@@ -1,6 +1,8 @@
 import logger from '../logger';
 import {UserDTO} from '../models/user';
 import {ItemDTO} from '../models/item';
+import {ActionEagerDTO} from '../models/action';
+import {MessageEagerDTO} from '../models/message';
 
 export default class SocketsUtils {
 	io: SocketIO.Server;
@@ -25,7 +27,13 @@ export default class SocketsUtils {
 		users.set(user, tabCount);
 		socket.join(list);
 		logger.debug(`User ${user} joined list ${list}`);
+		logger.debug('----------UPDATED CONNECTIONS MAP------------');
+		[...this.connections.get(list).keys()].forEach(userId => {
+			logger.debug(`User ${userId} has now ${this.connections.get(list).get(userId)} active connections`);
+		});
+		logger.debug('---------------------------------------------');
 		logger.debug(`Now ${this.connections.get(list).size} users are connected to list ${list}`);
+		logger.debug('---------------------------------------------');
 		this.io.sockets.to(list).emit('user connected', [...this.connections.get(list).keys()]);
 	};
 
@@ -42,7 +50,13 @@ export default class SocketsUtils {
 		this.io.sockets.to(list).emit('user disconnected', [...this.connections.get(list).keys()]);
 		socket.leave(list);
 		logger.debug(`User ${user} left list ${list}`);
+		logger.debug('----------UPDATED CONNECTIONS MAP------------');
+		[...this.connections.get(list).keys()].forEach(userId => {
+			logger.debug(`User ${userId} has now ${this.connections.get(list).get(userId)} active connections`);
+		});
+		logger.debug('---------------------------------------------');
 		logger.debug(`Now ${this.connections.get(list).size} users are connected to list ${list}`);
+		logger.debug('---------------------------------------------');
 	};
 
 	public initialize = () => {
@@ -53,18 +67,32 @@ export default class SocketsUtils {
 	};
 
 	public joinList = (listId: string, user: UserDTO) => {
+		logger.debug(`Socket event ${listId}: User joined list`);
 		this.io.sockets.to(listId).emit('user joined', user);
 	};
 
 	public itemAdded = (listId: string, item: ItemDTO) => {
+		logger.debug(`Socket event ${listId}: User cretaed item`);
 		this.io.sockets.to(listId).emit('item added', item);
 	};
 
 	public itemUpdated = (listId: string, item: ItemDTO) => {
+		logger.debug(`Socket event ${listId}: User updated item`);
 		this.io.sockets.to(listId).emit('item updated', item);
 	};
 
 	public itemRemoved = (listId: string, itemId: string) => {
+		logger.debug(`Socket event ${listId}: User remove item`);
 		this.io.sockets.to(listId).emit('item removed', itemId);
+	};
+
+	public emitAction = (listId: string, action: ActionEagerDTO) => {
+		logger.debug(`Socket event ${listId}: New history entry`);
+		this.io.sockets.to(listId).emit('action happened', action);
+	};
+
+	public messageSent = (listId: string, message: MessageEagerDTO) => {
+		logger.debug(`Socket event ${listId}: New message`);
+		this.io.sockets.to(listId).emit('new message', message);
 	};
 }

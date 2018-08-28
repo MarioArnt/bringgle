@@ -1,10 +1,14 @@
 import Vue from 'vue'
 import Router from 'vue-router'
-import Home from '@/components/Home'
-import CreateList from '@/components/CreateList'
-import JoinList from '@/components/JoinList'
-import List from '@/components/List'
-import RecoverSession from '@/components/RecoverSession'
+
+const Home = () => import('@/components/Home');
+const CreateList = () => import('@/components/CreateList');
+const JoinList = () => import('@/components/JoinList');
+const List = () => import('@/components/List');
+const RecoverSession = () => import('@/components/RecoverSession');
+const ItemsList = () => import('@/components/ItemsList');
+const Messenger = () => import('@/components/Messenger');
+const ListHistory = () => import('@/components/History');
 
 Vue.use(Router)
 
@@ -22,7 +26,21 @@ export default new Router({
     },
     {
       path: '/list/:id',
-      component: List
+      component: List,
+      children: [
+        {
+          path: 'items',
+          component: ItemsList
+        },
+        {
+          path: 'messages',
+          component: Messenger
+        },
+        {
+          path: 'history',
+          component: ListHistory
+        },
+      ]
     },
     {
       path: '/list/:id/join',

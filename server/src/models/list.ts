@@ -1,29 +1,40 @@
 import Mongoose from 'mongoose';
 import {UserModel, UserDTO} from './user';
 import {ItemModel, ItemDTO} from './item';
+import {MessageModel, MessageLazyDTO} from './message';
+import {ActionModel, ActionLazyDTO} from './action';
 
 export type ListModelEager = Mongoose.Document & {
 	title: string;
+	description: string;
 	owner: UserModel;
 	attendees: UserModel[];
 	items: ItemModel[];
+	messages: MessageModel[];
+	history: ActionModel[];
 	created: Date;
 };
 
 export interface ListDTO {
 	id: string;
 	title: string;
+	description: string;
 	owner: UserDTO;
 	attendees: UserDTO[];
 	items: ItemDTO[];
+	messages: MessageLazyDTO[];
+	history: ActionLazyDTO[];
 	created: Date;
 }
 
 export type ListModelLazy = Mongoose.Document & {
 	title: string;
+	description: string;
 	owner: string;
 	attendees: string[];
 	items: string[];
+	messages: string[];
+	history: string[];
 	created: Date;
 };
 
@@ -32,7 +43,12 @@ const Schema = Mongoose.Schema;
 const listSchema = new Schema({
 	title: {
 		type: String,
-		required: true
+		required: true,
+		maxlength: 25
+	},
+	description: {
+		type: String,
+		maxlength: 16384
 	},
 	owner: {
 		type: Schema.Types.ObjectId,
@@ -46,6 +62,14 @@ const listSchema = new Schema({
 	items: [{
 		type: Schema.Types.ObjectId,
 		ref: 'item'
+	}],
+	history: [{
+		type: Schema.Types.ObjectId,
+		ref: 'action'
+	}],
+	messages: [{
+		type: Schema.Types.ObjectId,
+		ref: 'message'
 	}],
 	created: Date
 });

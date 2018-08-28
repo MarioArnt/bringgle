@@ -2,8 +2,7 @@
   div#app
     app-header
     vue-toastr(ref="toastr")
-    #main-content
-      router-view
+    router-view
 </template>
 
 <script lang="ts">
@@ -28,13 +27,17 @@ export default {
 ));
 
 @import "~vue-material/dist/theme/all"; // Apply the theme
+
+body {
+  background-color: white;
+}
 #app {
   font-family: 'Roboto', Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   margin: 0;
 }
-#main-content {
+.main-content {
   padding: 20px 10%;
 }
 .fa {
@@ -48,5 +51,24 @@ export default {
 
 .white {
   color: white;
+}
+.primary {
+  color: #7e57c2;
+}
+.primary-lighter {
+  color: #B39DDB;
+}
+.md-xsmall-show {
+  display: none;
+}
+@media screen and (max-width: 600px) {
+  .md-xsmall-show {
+    display: block;
+  }
+}
+.ellipsis {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>

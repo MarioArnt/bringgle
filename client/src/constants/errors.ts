@@ -16,3 +16,11 @@ export default class Errors {
 		EMAIL_ALREADY_TAKEN: 'E14'
   }
 }
+
+export class ToastError {
+  private msg: string;
+  constructor (msg?: string) {
+    if(!msg) this.msg = 'Something wrong happened';
+    else this.msg = msg;
+  }
+}

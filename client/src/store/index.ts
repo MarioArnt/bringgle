@@ -4,6 +4,7 @@ import RootState from '@/store/state'
 import Mutations from '@/store/mutations';
 import User from '@/models/user';
 import List from '@/models/list';
+import moment from 'moment'
 
 Vue.use(Vuex)
 
@@ -13,10 +14,24 @@ const store: StoreOptions<RootState> = {
     currentList: new List(),
     listStatus: {
       loaded: false,
-      error: false
+      error: null
     }
   },
-  mutations: Mutations
+  mutations: Mutations,
+  getters: {
+    orderedHistory: state => {
+      return state.currentList.history.sort((a, b) => moment(b.date).valueOf() - moment(a.date).valueOf());
+    },
+    orderedMessages: state => {
+      return state.currentList.messages.sort((a, b) => moment(a.sent).valueOf() - moment(b.sent).valueOf());
+    },
+    unreadMessages: state => {
+      return state.currentList.messages.filter(msg => !msg.seen.some(see => see.by.id === state.currentUser.id));
+    },
+    unreadHistory: state => {
+      return state.currentList.history.filter(act => !act.seen.some(see => see.by.id === state.currentUser.id));
+    }
+  }
 };
 
 export default new Vuex.Store<RootState>(store);

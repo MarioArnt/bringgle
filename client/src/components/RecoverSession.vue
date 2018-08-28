@@ -1,5 +1,5 @@
 <template lang="pug">
-  #session-recovery
+  #session-recovery.main-content
     h1 Session recovery
     p A user already attend the list {{ decodeURIComponent(listName) }} with this email address.
     p If it was you, it seems that you have lost your session.
