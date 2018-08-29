@@ -24,6 +24,7 @@ export default class SocketsUtils {
     SocketsUtils.socket.on('item removed', item => SocketsUtils.itemRemoved( item))
     SocketsUtils.socket.on('action happened', action => SocketsUtils.actionHappened(action))
     SocketsUtils.socket.on('new message', message => SocketsUtils.newMessage(message))
+    SocketsUtils.socket.on('user typing changed', usersTyping => SocketsUtils.usersTypingChanged(usersTyping));
     Logger.info('Socket created', SocketsUtils.socket)
   }
 
@@ -66,4 +67,17 @@ export default class SocketsUtils {
     store.commit('addMessage', message)
   }
 
+  public static startTyping = () => {
+    Logger.info('sending start typing socket event')
+    SocketsUtils.socket.emit('start typing');
+  }
+  public static stopTyping = () => {
+    Logger.info('sending stop typing socket event')
+    SocketsUtils.socket.emit('stop typing');
+  }
+
+  private static usersTypingChanged = (usersTyping: string[]) => {
+    Logger.info('Users typing in chat', usersTyping);
+    store.commit('uersTypingChanged', usersTyping);
+  }
 }

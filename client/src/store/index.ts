@@ -15,7 +15,8 @@ const store: StoreOptions<RootState> = {
     listStatus: {
       loaded: false,
       error: null
-    }
+    },
+    usersTyping: []
   },
   mutations: Mutations,
   getters: {
@@ -30,6 +31,9 @@ const store: StoreOptions<RootState> = {
     },
     unreadHistory: state => {
       return state.currentList.history.filter(act => !act.seen.some(see => see.by.id === state.currentUser.id));
+    },
+    whoIsTyping: state => {
+      return state.usersTyping.filter(typing => typing.id !== state.currentUser.id);
     }
   }
 };

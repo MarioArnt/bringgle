@@ -7,10 +7,12 @@ import {MessageEagerDTO} from '../models/message';
 export default class SocketsUtils {
 	io: SocketIO.Server;
 	connections: Map<string, Map<string, number>>;
+	usersTyping: Map<string, Set<string>>;
 
 	constructor(io: SocketIO.Server) {
 		this.io = io;
 		this.connections = new Map<string, Map<string, number>>();
+		this.usersTyping = new Map<string, Set<string>>();
 	}
 
 	private userConnected = (socket: any) => {
@@ -62,8 +64,39 @@ export default class SocketsUtils {
 	public initialize = () => {
 		this.io.on('connection', socket => {
 			this.userConnected(socket);
+			const list: string = socket.handshake.query.listId;
+			const user: string = socket.handshake.query.userId;
 			socket.on('disconnect', () => this.userDisconnected(socket));
+			socket.on('start typing', () => this.userTypingChanged(list, user, true));
+			socket.on('stop typing', () => this.userTypingChanged(list, user, false));
 		});
+	};
+
+	private userTypingChanged = (list: string, user: string, typing: boolean) => {
+		logger.debug('receiving typing socket event');
+		logger.debug(list);
+		logger.debug(user);
+		logger.debug('isTyping: ' + typing);
+		let usersTypingForList;
+		if (!this.usersTyping.has(list)) {
+			usersTypingForList = new Set<string>();
+			if (typing) {
+				usersTypingForList.add(user);
+			} else {
+				return;
+			}
+		} else {
+			usersTypingForList = this.usersTyping.get(list);
+			if (typing) {
+				usersTypingForList.add(user);
+			} else {
+				usersTypingForList.delete(user);
+			}
+		}
+		this.usersTyping.set(list, usersTypingForList);
+		logger.debug('users typing updated. sending socket event');
+		logger.debug([...usersTypingForList]);
+		this.io.sockets.to(list).emit('user typing changed', [...usersTypingForList]);
 	};
 
 	public joinList = (listId: string, user: UserDTO) => {
