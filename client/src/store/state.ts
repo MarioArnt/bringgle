@@ -7,5 +7,6 @@ export default interface RootState {
   listStatus: {
     loaded: boolean,
     error: number
-  }
+  },
+  usersTyping: User[]
 }

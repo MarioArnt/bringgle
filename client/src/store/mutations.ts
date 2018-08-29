@@ -112,6 +112,13 @@ const mutations: MutationTree<RootState> = {
   },
   addMessage (state: RootState, message: Message) {
     state.currentList.messages.push(message);
+  },
+  uersTypingChanged(state: RootState, usersTyping: string[]) {
+    const typing: User[] = [];
+    usersTyping.forEach(id => {
+      typing.push(state.currentList.attendees.find(att => att.id === id));
+    });
+    state.usersTyping = typing;
   }
 };
 
