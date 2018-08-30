@@ -3,10 +3,11 @@ import RootState from '@/store/state'
 import User from '@/models/user'
 import List from '@/models/list'
 import Item from '@/models/item'
-import Action from '@/models/action'
+import Action, { ActionDTO } from '@/models/action'
 import Message from '@/models/message'
 import Vue from 'vue'
 import Logger from 'js-logger'
+import Tabs from '@/constants/tabs';
 
 const setProperty = (oldState: any, newState: any, prop: string): void => {
   if (newState[prop]) Vue.set(oldState, prop, newState[prop])
@@ -119,6 +120,19 @@ const mutations: MutationTree<RootState> = {
       typing.push(state.currentList.attendees.find(att => att.id === id));
     });
     state.usersTyping = typing;
+  },
+  switchTab(state: RootState, tab: Tabs) {
+    Logger.debug('Switched to tab', tab);
+    state.currentTab = tab;
+  },
+  markEventAsSeen(state: RootState, updatedEvent: ActionDTO) {
+    Logger.debug('Mark event as seen', updatedEvent);
+    const toUpdate = state.currentList.history.find(ev => ev.id === updatedEvent.id);
+    if(!event) {
+      Logger.error('Event not found in history');
+      return;
+    }
+    setProperty(toUpdate, updatedEvent, 'seen');
   }
 };
 

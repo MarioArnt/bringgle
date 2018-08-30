@@ -14,10 +14,14 @@ import moment from 'moment'
 import store from '@/store'
 import DateHelpers from '@/helpers/date'
 import PerfectScrollbar from 'perfect-scrollbar';
+import Tabs from '@/constants/tabs';
+import HistoryController from '@/controllers/history'
 
 export default Vue.extend({
   name: 'History',
   mounted() {
+    this.$store.commit('switchTab', Tabs.HISTORY);
+    HistoryController.markHistoryAsSeen();
     const ps = new PerfectScrollbar('#history');
   },
   methods: {

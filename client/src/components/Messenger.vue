@@ -28,6 +28,7 @@ import VueScrollTo from 'vue-scrollto';
 import PerfectScrollbar from 'perfect-scrollbar';
 import Logger from 'js-logger';
 import SocketsUtils from '@/sockets';
+import Tabs from '@/constants/tabs';
 
 let typingTimeout = null;
 let typing = false;
@@ -79,6 +80,7 @@ export default Vue.extend({
     }
   },
   mounted() {
+    this.$store.commit('switchTab', Tabs.MESSAGES);
     const ps = new PerfectScrollbar('#messages');
     this.scrollToLastMessage();
   },

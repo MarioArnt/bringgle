@@ -6,6 +6,8 @@ import User from '@/models/user'
 import Item from '@/models/item'
 import Action from '@/models/action'
 import Message from '@/models/message'
+import Tabs from '@/constants/tabs';
+import HistoryController from '@/controllers/history';
 
 export default class SocketsUtils {
   private static socket: io.Socket;
@@ -59,11 +61,14 @@ export default class SocketsUtils {
 
   private static actionHappened = (action: Action): void => {
     Logger.info('New history entry', action)
-    store.commit('addAction', action)
+    store.commit('addAction', action);
+    if (store.state.currentTab === Tabs.HISTORY) {
+      HistoryController.markEventAsSeen(action.id);
+    }
   }
 
   private static newMessage = (message: Message): void => {
-    Logger.info('New history entry', message)
+    Logger.info('New message', message)
     store.commit('addMessage', message)
   }
 

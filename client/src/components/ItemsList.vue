@@ -47,6 +47,7 @@ import ItemsController from '../controllers/items'
 import AddItem from '../components/AddItem.vue'
 import Vue from 'vue'
 import PerfectScrollbar from 'perfect-scrollbar';
+import Tabs from '@/constants/tabs';
 
 export default {
   name: 'ItemsList',
@@ -58,6 +59,7 @@ export default {
     }
   },
   mounted() {
+    this.$store.commit('switchTab', Tabs.ITEMS);
     const ps = new PerfectScrollbar('#items-container');
   },
   methods: {

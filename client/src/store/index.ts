@@ -5,6 +5,7 @@ import Mutations from '@/store/mutations';
 import User from '@/models/user';
 import List from '@/models/list';
 import moment from 'moment'
+import Tabs from '@/constants/tabs';
 
 Vue.use(Vuex)
 
@@ -12,6 +13,7 @@ const store: StoreOptions<RootState> = {
   state: {
     currentUser: new User(),
     currentList: new List(),
+    currentTab: null,
     listStatus: {
       loaded: false,
       error: null
