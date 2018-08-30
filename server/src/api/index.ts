@@ -1,6 +1,7 @@
 import SocketsUtils from '../sockets';
 import ListsController from '../controllers/lists';
 import * as Express from 'express';
+import ActionsController from '../controllers/actions';
 
 export default class Router {
 	private socketsUtils: SocketsUtils;
@@ -21,6 +22,8 @@ export default class Router {
 		this.router.delete('/api/lists/:listId/items/:itemId', this.listsController.removeItem);
 		this.router.post('/api/lists/:id/invite', this.listsController.invite);
 		this.router.post('/api/lists/:id/messages', this.listsController.sendMessage);
+		this.router.patch('/api/lists/:id/history', this.listsController.markHistoryAsSeen);
+		this.router.patch('/api/lists/:listId/history/:actionId', ActionsController.markActionAsSeen);
 	}
 	public getRouter(): Express.Router {
 		return this.router;

@@ -16,6 +16,7 @@ import ActionsController from './actions';
 import Message, {MessageLazyDTO, MessageEagerDTO} from '../models/message';
 import Seen from '../models/seen';
 import SeensController from './seens';
+import RequestDataHelpers from './helpers/request-data';
 
 export interface CreateJoinResponse {
 	listId: string;
@@ -28,71 +29,13 @@ export default class ListsController {
 	constructor(socketsUtils: SocketsUtils) {
 		this.socketsUtils = socketsUtils;
 	}
-	private static checkId = (id: string, type: string): ErrorModel => {
-		if (!id) {
-			return Errors.noId(type);
-		}
-		return null;
-	};
-
-	private static checkRequired = (field: string, value: any): ErrorModel => {
-		if (!value && value !== 0) {
-			return Errors.missingRequiredField(field);
-		}
-		return null;
-	};
-
-	private static checkQuantity = (qty: any): ErrorModel => {
-		const quantity = Number(qty);
-		if (Number.isNaN(quantity) || !Number.isInteger(quantity) || quantity <= 0 || quantity > 99) {
-			return Errors.badQuantity(quantity);
-		}
-		return null;
-	};
-
-	private static checkAuthorized = (list: ListModelLazy, userId: string, action: string): ErrorModel => {
-		if (list.attendees.indexOf(userId) < 0) {
-			return Errors.notAuthorized(userId, action);
-		}
-		return null;
-	};
-
-	private static checkItemInList = (list: ListModelLazy, itemId: string) => {
-		if (list.items.indexOf(itemId) < 0) {
-			return Errors.itemNotInList(list._id, itemId);
-		}
-		return null;
-	};
-
-	private static checkValidEmail = (email: string): ErrorModel => {
-		const pattern = /(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9]))\.){3}(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])/;
-		if (!email.match(pattern)) {
-			return Errors.invalidEmailAddress(email);
-		}
-		return null;
-	};
-
-	private static checkMailNotAlreadyTaken = async (listId: string, userEmail: string): Promise<ErrorModel> => {
-		return new Promise<ErrorModel>((resolve, reject) => {
-			ListsController.findById(listId, true).then((list: ListModelEager) => {
-				if (list.attendees.some(att => att.email === userEmail)) {
-					const user: UserModel = list.attendees.find(att => att.email === userEmail);
-					MailsController.recoverSession(list._id, list.title, user._id, user.name, userEmail);
-					return resolve(Errors.emailAlreadyTaken(userEmail, list.title));
-				}
-				return resolve(null);
-			}, err => {
-				return reject(err);
-			});
-		});
-	};
 
 	public createList = (req: Request, res: Response): Response => {
 		const listName = req.body.title;
 		const userName = req.body.owner ? req.body.owner.name : null;
 		const userEmail = req.body.owner ? req.body.owner.email : null;
 		const userId = req.body.owner ? req.body.owner.id : null;
-		const err = ListsController.checkRequired('listName', listName);
+		const err = RequestDataHelpers.checkRequired('listName', listName);
 		if (err) {
 			return res.status(err.status || 500).json(err);
 		}
@@ -128,9 +71,9 @@ export default class ListsController {
 	};
 
 	private createUserAndList = async (listName: string, userName: string, userEmail: string): Promise<CreateJoinResponse> => {
-		let err = ListsController.checkRequired('displayName', userName);
+		let err = RequestDataHelpers.checkRequired('displayName', userName);
 		if (!err) {
-			err = ListsController.checkRequired('userEmail', userEmail);
+			err = RequestDataHelpers.checkRequired('userEmail', userEmail);
 		}
 		if (err) {
 			return Promise.reject(err);
@@ -172,7 +115,7 @@ export default class ListsController {
 		const userName: string = req.body.name;
 		const userEmail: string = req.body.email;
 		const userId: string = req.body.id;
-		const err: ErrorModel = ListsController.checkId(ListsController.uncastFalsyRequestParamter(listId), 'list_id');
+		const err: ErrorModel = RequestDataHelpers.checkId(listId, 'list_id');
 		if (err) {
 			return res.status(err.status || 500).send(err);
 		}
@@ -212,14 +155,14 @@ export default class ListsController {
 
 	private createUserAndJoinListRequest = async (listId: string, userName: string, userEmail: string): Promise<CreateJoinResponse> => {
 		return new Promise<CreateJoinResponse>((resolve, reject) => {
-			let err: ErrorModel = ListsController.checkRequired('displayName', userName);
+			let err: ErrorModel = RequestDataHelpers.checkRequired('displayName', userName);
 			if (!err) {
-				err = ListsController.checkRequired('userEmail', userEmail);
+				err = RequestDataHelpers.checkRequired('userEmail', userEmail);
 			}
 			if (err) {
 				return reject(err);
 			}
-			ListsController.checkMailNotAlreadyTaken(listId, userEmail).then((emailAlreadyTaken: ErrorModel) => {
+			RequestDataHelpers.checkMailNotAlreadyTaken(listId, userEmail).then((emailAlreadyTaken: ErrorModel) => {
 				if (emailAlreadyTaken) {
 					return reject(emailAlreadyTaken);
 				}
@@ -301,22 +244,12 @@ export default class ListsController {
 		});
 	};
 
-	private static uncastFalsyRequestParamter = (param: string): string => {
-		if (param === 'undefined') {
-			return null;
-		}
-		if (param === 'null') {
-			return null;
-		}
-		return param;
-	};
-
 	public getList = (req: Request, res: Response): Response => {
 		const listId: string = req.params.id;
 		const userId: string = req.query.userId;
-		let err: ErrorModel = ListsController.checkId(ListsController.uncastFalsyRequestParamter(listId), 'list');
+		let err: ErrorModel = RequestDataHelpers.checkId(listId, 'list');
 		if (!err) {
-			err = ListsController.checkId(ListsController.uncastFalsyRequestParamter(userId), 'user');
+			err = RequestDataHelpers.checkId(userId, 'user');
 		}
 		if (err) {
 			return res.status(err.status || 500).send(err);
@@ -352,18 +285,18 @@ export default class ListsController {
 
 	public addItem = (req: Request, res: Response): Response => {
 		const listId: string = req.params.id;
-		let err: ErrorModel = ListsController.checkId(ListsController.uncastFalsyRequestParamter(listId), 'list_id');
+		let err: ErrorModel = RequestDataHelpers.checkId(listId, 'list_id');
 		if (!err) {
-			err = ListsController.checkRequired('name', req.body.name);
+			err = RequestDataHelpers.checkRequired('name', req.body.name);
 		}
 		if (!err) {
-			err = ListsController.checkRequired('author', req.body.author);
+			err = RequestDataHelpers.checkRequired('author', req.body.author);
 		}
 		if (!err) {
-			err = ListsController.checkRequired('quantity', req.body.quantity);
+			err = RequestDataHelpers.checkRequired('quantity', req.body.quantity);
 		}
 		if (!err) {
-			err = ListsController.checkQuantity(req.body.quantity);
+			err = RequestDataHelpers.checkQuantity(req.body.quantity);
 		}
 		if (err) {
 			return res.status(err.status || 500).send(err);
@@ -379,7 +312,7 @@ export default class ListsController {
 	private addItemRequest = async (listId: string, authorId: string, quantity: number, name: string): Promise<ItemModel> => {
 		const list = await ListsController.findById(listId).catch(errList => Promise.reject(errList)) as ListModelLazy;
 		const author = await UsersController.findById(authorId).catch(errUser => Promise.reject(errUser)) as UserModel;
-		const err: ErrorModel = ListsController.checkAuthorized(list, author._id, 'add item');
+		const err: ErrorModel = RequestDataHelpers.checkAuthorized(list, author._id, 'add item');
 
 		if (err) {
 			return Promise.reject(err);
@@ -420,15 +353,15 @@ export default class ListsController {
 		const listId: string = req.params.listId;
 		const itemId: string = req.params.itemId;
 		const payload: any = req.body;
-		let err: ErrorModel = ListsController.checkId(ListsController.uncastFalsyRequestParamter(listId), 'list');
+		let err: ErrorModel = RequestDataHelpers.checkId(listId, 'list');
 		if (!err) {
-			err = ListsController.checkId(ListsController.uncastFalsyRequestParamter(itemId), 'item');
+			err = RequestDataHelpers.checkId(itemId, 'item');
 		}
 		if (!err) {
-			err = ListsController.checkId(payload.userId, 'user');
+			err = RequestDataHelpers.checkId(payload.userId, 'user');
 		}
 		if (!err) {
-			err = ListsController.checkRequired('action', payload.action);
+			err = RequestDataHelpers.checkRequired('action', payload.action);
 		}
 		if (err) {
 			return res.status(err.status).send(err);
@@ -445,9 +378,9 @@ export default class ListsController {
 		const list = await ListsController.findById(listId).catch(errList => Promise.reject(errList)) as ListModelLazy;
 		const item = await ItemsController.findById(itemId).catch(errItem => Promise.reject(errItem)) as ItemModel;
 		const user = await UsersController.findById(payload.userId).catch(errUser => Promise.reject(errUser)) as UserModel;
-		let err = ListsController.checkAuthorized(list, user._id, 'update item');
+		let err = RequestDataHelpers.checkAuthorized(list, user._id, 'update item');
 		if (!err) {
-			err = ListsController.checkItemInList(list, item._id);
+			err = RequestDataHelpers.checkItemInList(list, item._id);
 		}
 		if (err) {
 			return Promise.reject(err);
@@ -465,9 +398,9 @@ export default class ListsController {
 	};
 
 	private updateQuantityAndName = async (list: ListModelLazy, user: UserModel, item: ItemModel, newName: string, newQuantity: any): Promise<ItemDTO> => {
-		let err = ListsController.checkRequired('name', newName);
+		let err = RequestDataHelpers.checkRequired('name', newName);
 		if (!err) {
-			err = ListsController.checkQuantity(newQuantity);
+			err = RequestDataHelpers.checkQuantity(newQuantity);
 		}
 		if (err) {
 			return Promise.reject(err);
@@ -530,7 +463,7 @@ export default class ListsController {
 	};
 
 	private bringItem = async (item: ItemModel, sub: number, user: UserModel): Promise<ItemDTO> => {
-		const err: ErrorModel = ListsController.checkRequired('sub-item', sub);
+		const err: ErrorModel = RequestDataHelpers.checkRequired('sub-item', sub);
 		if (err) {
 			return Promise.reject(err);
 		}
@@ -542,7 +475,7 @@ export default class ListsController {
 	};
 
 	private clearItem = async (item: ItemModel, sub: number): Promise<ItemDTO> => {
-		const err = ListsController.checkRequired('sub-item', sub);
+		const err = RequestDataHelpers.checkRequired('sub-item', sub);
 		if (err) {
 			return Promise.reject(err);
 		}
@@ -557,12 +490,12 @@ export default class ListsController {
 		const listId: string = req.params.listId;
 		const itemId: string = req.params.itemId;
 		const userId: string = req.query.userId;
-		let err: ErrorModel = ListsController.checkId(ListsController.uncastFalsyRequestParamter(listId), 'list');
+		let err: ErrorModel = RequestDataHelpers.checkId(listId, 'list');
 		if (!err) {
-			err = ListsController.checkId(ListsController.uncastFalsyRequestParamter(itemId), 'item');
+			err = RequestDataHelpers.checkId(itemId, 'item');
 		}
 		if (!err) {
-			err = ListsController.checkId(ListsController.uncastFalsyRequestParamter(userId), 'user');
+			err = RequestDataHelpers.checkId(userId, 'user');
 		}
 		if (err) {
 			return res.status(err.status || 500).send(err);
@@ -579,9 +512,9 @@ export default class ListsController {
 		const list = await ListsController.findById(listId).catch(errList => Promise.reject(errList)) as ListModelLazy;
 		const item = await ItemsController.findById(itemId).catch(errItem => Promise.reject(errItem)) as ItemModel;
 		const user = await UsersController.findById(userId).catch(errUser => Promise.reject(errUser)) as UserModel;
-		let err = ListsController.checkAuthorized(list, user._id, 'delete item');
+		let err = RequestDataHelpers.checkAuthorized(list, user._id, 'delete item');
 		if (!err) {
-			err = ListsController.checkItemInList(list, item._id);
+			err = RequestDataHelpers.checkItemInList(list, item._id);
 		}
 		if (err) {
 			return Promise.reject(err);
@@ -624,15 +557,15 @@ export default class ListsController {
 	};
 
 	public invite = (req: Request, res: Response): Response => {
-		let err = ListsController.checkId(ListsController.uncastFalsyRequestParamter(req.params.id), 'list');
+		let err = RequestDataHelpers.checkId(req.params.id, 'list');
 		if (!err) {
-			err = ListsController.checkRequired('email', req.body.email);
+			err = RequestDataHelpers.checkRequired('email', req.body.email);
 		}
 		if (!err) {
-			err = ListsController.checkValidEmail(req.body.email);
+			err = RequestDataHelpers.checkValidEmail(req.body.email);
 		}
 		if (!err) {
-			err = ListsController.checkId(req.body.userId, 'user');
+			err = RequestDataHelpers.checkId(req.body.userId, 'user');
 		}
 		if (err) {
 			return res.status(err.status).send(err);
@@ -648,7 +581,7 @@ export default class ListsController {
 	private inviteUser = async (listId: string, userId: string, email: string): Promise<ActionEagerDTO> => {
 		const list = await ListsController.findById(listId).catch(err => Promise.reject(err)) as ListModelLazy;
 		const user = await UsersController.findById(userId).catch(err => Promise.reject(err)) as UserModel;
-		const unathorized = ListsController.checkAuthorized(list, user._id, 'invite attendee');
+		const unathorized = RequestDataHelpers.checkAuthorized(list, user._id, 'invite attendee');
 		if (unathorized) {
 			return Promise.reject(unathorized);
 		}
@@ -674,9 +607,9 @@ export default class ListsController {
 	public sendMessage = (req: Request, res: Response): Response => {
 		const listId = req.params.id;
 		const userId = req.body.userId;
-		let err = ListsController.checkId(ListsController.uncastFalsyRequestParamter(listId), 'list');
+		let err = RequestDataHelpers.checkId(listId, 'list');
 		if (!err) {
-			err = ListsController.checkId(userId, 'user');
+			err = RequestDataHelpers.checkId(userId, 'user');
 		}
 		if (err) {
 			return res.status(err.status).send(err);
@@ -692,7 +625,7 @@ export default class ListsController {
 	private saveMessage = async (listId: string, from: string, content: string) => {
 		const list: ListModelLazy = await ListsController.findById(listId).catch(err => Promise.reject(err)) as ListModelLazy;
 		const user: UserModel = await UsersController.findById(from).catch(err => Promise.reject(err)) as UserModel;
-		const unathorized = ListsController.checkAuthorized(list, from, 'send message');
+		const unathorized = RequestDataHelpers.checkAuthorized(list, from, 'send message');
 		if (unathorized) {
 			return Promise.reject(unathorized);
 		}
@@ -712,5 +645,54 @@ export default class ListsController {
 		list.messages.push(savedMessage._id);
 		await ListsController.save(list).catch(err => Promise.reject(err));
 		return savedMessage;
+	};
+	public markHistoryAsSeen = (req: Request, res: Response) => {
+		const userId = req.body.userId;
+		const listId = req.params.id;
+		this.markHistoryAsSeenForUser(listId, userId).then((updatedEvents: ActionEagerDTO[]) => {
+			return res.json(updatedEvents);
+		}, (err: ErrorModel) => {
+			return res.status(err.status || 500).send(err);
+		});
+	};
+
+	private markHistoryAsSeenForUser = async (listId: string, userId: string): Promise<ActionEagerDTO[]> => {
+		logger.debug(`Marking history as seen for list ${listId} and user ${userId}`);
+		let err = RequestDataHelpers.checkId(userId, 'user');
+		if (!err) {
+			err = RequestDataHelpers.checkId(listId, 'list');
+		}
+		if (err) {
+			return Promise.reject(err);
+		}
+		const list: ListModelLazy = await ListsController.findById(listId) as ListModelLazy;
+		err = RequestDataHelpers.checkAuthorized(list, userId, 'see events');
+		if (err) {
+			return Promise.reject(err);
+		}
+		const history: ActionModel[] = await ActionsController.findByIds(list.history);
+		logger.debug(`History size: ${history.length}`);
+		const unseenEvents = history.filter(event => !event.seen.some(see => see.by.id === userId));
+		logger.debug(`Unseen events: ${unseenEvents.length}`);
+		const updateEvents: Promise<ActionEagerDTO>[] = [];
+		for (const unseenEvent of unseenEvents) {
+			logger.debug(`Updating event status: ${unseenEvent.id}`);
+			updateEvents.push(new Promise((resolve, reject) => {
+				const seenByMe = new Seen({
+					by: userId,
+					date: Date.now()
+				});
+				logger.debug(`Saving seen by: ${userId}`);
+				SeensController.save(seenByMe).then(savedSeen => {
+					logger.debug(`Saving event ${unseenEvent.id}`);
+					unseenEvent.seen.push(savedSeen);
+					ActionsController.save(unseenEvent).then(updatedEvent => {
+						logger.debug(`Done: ${unseenEvent.id}`);
+						resolve(ActionsController.actionBuilder(updatedEvent, true) as ActionEagerDTO);
+					}).catch(errUpdatingUnseenEvent => reject(errUpdatingUnseenEvent));
+				}).catch(errSavingSeen => reject(errSavingSeen));
+			}));
+		}
+		return Promise.all(updateEvents).catch(errUpdatingEvents => Promise.reject(errUpdatingEvents));
 	};
 }

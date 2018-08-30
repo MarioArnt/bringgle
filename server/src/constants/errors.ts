@@ -28,7 +28,8 @@ export default class Errors {
 		ITEM_ALREADY_CLEARED: 'E11',
 		EMAIL_NOT_SENT: 'E12',
 		INVALID_EMAIL_ADDRESS: 'E13',
-		EMAIL_ALREADY_TAKEN: 'E14'
+		EMAIL_ALREADY_TAKEN: 'E14',
+		ACTION_NOT_IN_LIST_HISTORY: 'E15'
 	};
 
 	public static databaseAccess = (details: any): ErrorModel => {
@@ -160,6 +161,15 @@ export default class Errors {
 			status: 400,
 			msg: 'Email already taken',
 			details: {email, listName}
+		};
+	};
+
+	public static actionNotInListHistory = (actionId: string, listId: string): ErrorModel => {
+		return {
+			code: Errors.code.ACTION_NOT_IN_LIST_HISTORY,
+			status: 400,
+			msg: 'The action does not exist in list history',
+			details: {actionId, listId}
 		};
 	};
 }
